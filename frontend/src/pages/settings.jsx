@@ -1,9 +1,21 @@
+import { useEffect, useRef } from "react"
 import { userAPI } from '../services/api.js'
 import { getCurrentUser, setCurrentUser } from '../utils/auth.js'
 import { renderLayout } from '../components/layout.js'
 
-export const renderSettingsPage = () => {
-  const app = document.getElementById('app')
+export default function Settings() {
+  const appRef = useRef(null)
+
+  useEffect(() => {
+    if (!appRef.current) return
+    renderSettingsPage(appRef.current)
+  }, [])
+
+  return <div id="app" ref={appRef}></div>
+}
+
+const renderSettingsPage = (app) => {
+  if (!app) app = document.getElementById('app')
   const user = getCurrentUser()
   
   app.innerHTML = `

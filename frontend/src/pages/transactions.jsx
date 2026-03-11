@@ -1,9 +1,21 @@
+import { useEffect, useRef } from "react"
 import { transactionAPI } from '../services/api.js'
 import { navigate } from '../utils/router.js'
 import { renderLayout } from '../components/layout.js'
 
-export const renderTransactionsPage = async () => {
-  const app = document.getElementById('app')
+export default function Transactions() {
+  const appRef = useRef(null)
+
+  useEffect(() => {
+    if (!appRef.current) return
+    renderTransactionsPage(appRef.current)
+  }, [])
+
+  return <div id="app" ref={appRef}></div>
+}
+
+const renderTransactionsPage = async (app) => {
+  if (!app) app = document.getElementById('app')
   
   app.innerHTML = `
     <div class="flex h-screen bg-slate-900">

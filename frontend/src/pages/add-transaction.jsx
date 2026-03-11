@@ -1,9 +1,21 @@
+import { useEffect, useRef } from "react"
 import { transactionAPI } from '../services/api.js'
 import { navigate } from '../utils/router.js'
 import { renderLayout } from '../components/layout.js'
 
-export const renderAddTransactionPage = () => {
-  const app = document.getElementById('app')
+export default function AddTransaction() {
+  const appRef = useRef(null)
+
+  useEffect(() => {
+    if (!appRef.current) return
+    renderAddTransactionPage(appRef.current)
+  }, [])
+
+  return <div id="app" ref={appRef}></div>
+}
+
+const renderAddTransactionPage = (app) => {
+  if (!app) app = document.getElementById('app')
   
   app.innerHTML = `
     <div class="flex h-screen bg-slate-900">

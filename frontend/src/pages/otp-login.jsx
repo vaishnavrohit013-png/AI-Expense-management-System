@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react"
 import { authAPI } from '../services/api.js'
 import { setToken, setCurrentUser } from '../utils/auth.js'
 import { navigate } from '../utils/router.js'
@@ -6,8 +7,19 @@ let otpStep = 'email' // 'email' or 'otp'
 let userEmail = ''
 let resendTimer = 0
 
-export const renderOTPLoginPage = () => {
-  const app = document.getElementById('app')
+export default function OtpLogin() {
+  const appRef = useRef(null)
+
+  useEffect(() => {
+    if (!appRef.current) return
+    renderOTPLoginPage(appRef.current)
+  }, [])
+
+  return <div id="app" ref={appRef}></div>
+}
+
+const renderOTPLoginPage = (app) => {
+  if (!app) app = document.getElementById('app')
   
   app.innerHTML = `
     <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-900 via-slate-900 to-slate-800 p-4">

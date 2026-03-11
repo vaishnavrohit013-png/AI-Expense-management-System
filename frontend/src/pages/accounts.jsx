@@ -1,7 +1,19 @@
+import { useEffect, useRef } from "react"
 import { renderLayout } from '../components/layout.js'
 
-export const renderAccountsPage = () => {
-  const app = document.getElementById('app')
+export default function Accounts() {
+  const appRef = useRef(null)
+
+  useEffect(() => {
+    if (!appRef.current) return
+    renderAccountsPage(appRef.current)
+  }, [])
+
+  return <div id="app" ref={appRef}></div>
+}
+
+const renderAccountsPage = (app) => {
+  if (!app) app = document.getElementById('app')
   
   app.innerHTML = `
     <div class="flex h-screen bg-slate-900">
