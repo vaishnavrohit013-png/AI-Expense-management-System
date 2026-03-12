@@ -6,7 +6,6 @@ import { findByIdUserService } from "../services/user.service.js";
 const options = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
   secretOrKey: Env.JWT_SECRET,
-  audience: ["user"],
   algorithms: ["HS256"],
 };
 
@@ -28,9 +27,6 @@ passport.use(
     }
   })
 );
-
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((user, done) => done(null, user));
 
 export const passportAuthenticateJwt = passport.authenticate("jwt", {
   session: false,

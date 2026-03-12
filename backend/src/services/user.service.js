@@ -19,7 +19,8 @@ export const updateUserService = async (
   }
 
   user.set({
-    name: body.name,
+    name: body.name || user.name,
+    monthlyBudget: body.monthlyBudget !== undefined ? body.monthlyBudget : user.monthlyBudget,
   });
 
   await user.save();

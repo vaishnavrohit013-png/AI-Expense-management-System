@@ -8,8 +8,8 @@ import { BadRequestException, NotFoundException } from "../utils/app-error.js";
 
 import { calculateNextOccurrence } from "../utils/helper.js";
 
+import { convertToPaise, convertToRupeeUnit } from "../utils/format-currency.js";
 import { genAI, genAIModel } from "../config/google-ai.config.js";
-
 import { receiptPrompt } from "../utils/prompt.js";
 
 export const createTransactionService = async (body, userId) => {
@@ -32,7 +32,7 @@ export const createTransactionService = async (body, userId) => {
     ...body,
     userId,
     category: body.category,
-    amount: Number(body.amount),
+    amount: convertToPaise(body.amount),
     isRecurring: body.isRecurring || false,
     recurringInterval: body.recurringInterval || null,
     nextRecurringDate,
@@ -70,7 +70,7 @@ export const getAllTransactionService = async (
   const { pageSize, pageNumber } = pagination;
   const skip = (pageNumber - 1) * pageSize;
 
-  const [transations, totalCount] = await Promise.all([
+  const [transactions, totalCount] = await Promise.all([
     TransactionModel.find(filterConditions)
       .skip(skip)
       .limit(pageSize)
@@ -81,7 +81,10 @@ export const getAllTransactionService = async (
   const totalPages = Math.ceil(totalCount / pageSize);
 
   return {
-    transations,
+    transactions: transactions.map((t) => ({
+      ...t.toObject(),
+      amount: convertToRupeeUnit(t.amount),
+    })),
     pagination: {
       pageSize,
       pageNumber,
@@ -102,7 +105,10 @@ export const getTransactionByIdService = async (
   });
 
   if (!transaction) throw new NotFoundException("Transaction not found");
-  return transaction;
+  return {
+    ...transaction.toObject(),
+    amount: convertToRupeeUnit(transaction.amount),
+  };
 };
 
 export const duplicateTransactionService = async (
@@ -175,7 +181,7 @@ export const updateTransactionService = async (
     ...(body.category && { category: body.category }),
     ...(body.type && { type: body.type }),
     ...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
-    ...(body.amount !== undefined && { amount: Number(body.amount) }),
+    ...(body.amount !== undefined && { amount: convertToPaise(body.amount) }),
     date,
     isRecurring,
     recurringInterval,
@@ -207,7 +213,7 @@ export const bulkDeleteTransactionService = async (
   });
 
   if (result.deletedCount === 0)
-    throw new NotFoundException("No transations found");
+    throw new NotFoundException("No transactions found");
 
   return {
     sucess: true,
@@ -227,7 +233,7 @@ export const bulkTransactionService = async (
         isRecurring: false,
         nextRecurringDate: null,
         recurringInterval: null,
-        lastProcesses: null,
+        lastProcessed: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },

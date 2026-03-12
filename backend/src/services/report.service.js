@@ -63,47 +63,97 @@ export const updateReportSettingService = async (userId, body) => {
 /* -------------------------------------------------------------------------- */
 
 export const generateReportService = async (userId, fromDate, toDate) => {
-  const results = await TransactionModel.aggregate([
-    {
-      $match: {
-        userId: new mongoose.Types.ObjectId(userId),
-        date: { $gte: fromDate, $lte: toDate },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalIncome: {
-          $sum: {
-            $cond: [
-              { $eq: ["$type", TransactionTypeEnum.INCOME] },
-              { $abs: "$amount" },
-              0,
-            ],
-          },
-        },
-        totalExpenses: {
-          $sum: {
-            $cond: [
-              { $eq: ["$type", TransactionTypeEnum.EXPENSE] },
-              { $abs: "$amount" },
-              0,
-            ],
-          },
+  const [summaryResults, categoryResults] = await Promise.all([
+    TransactionModel.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          date: { $gte: fromDate, $lte: toDate },
         },
       },
-    },
+      {
+        $group: {
+          _id: null,
+          totalIncome: {
+            $sum: {
+              $cond: [
+                { $eq: ["$type", TransactionTypeEnum.INCOME] },
+                { $abs: "$amount" },
+                0,
+              ],
+            },
+          },
+          totalExpenses: {
+            $sum: {
+              $cond: [
+                { $eq: ["$type", TransactionTypeEnum.EXPENSE] },
+                { $abs: "$amount" },
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]),
+    TransactionModel.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          type: TransactionTypeEnum.EXPENSE,
+          date: { $gte: fromDate, $lte: toDate },
+        },
+      },
+      {
+        $group: {
+          _id: "$category",
+          total: { $sum: { $abs: "$amount" } },
+        },
+      },
+      { $sort: { total: -1 } },
+    ]),
   ]);
 
-  if (!results.length) return null;
+  if (!summaryResults.length) return null;
 
-  const { totalIncome = 0, totalExpenses = 0 } = results[0];
-
+  const { totalIncome = 0, totalExpenses = 0 } = summaryResults[0];
   const availableBalance = totalIncome - totalExpenses;
+  const savingsRate =
+    totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
+
+  const topCategories = categoryResults.slice(0, 5).map((c) => ({
+    name: c._id,
+    amount: convertToRupeeUnit(c.total),
+  }));
+
+  const periodLabel = `${format(fromDate, "MMMM d")}–${format(
+    toDate,
+    "d, yyyy"
+  )}`;
+
+  // Generate AI Insights
+  let insights = "No insights available for this period.";
+  try {
+    const prompt = reportInsightPrompt(
+      convertToRupeeUnit(totalIncome),
+      convertToRupeeUnit(totalExpenses),
+      savingsRate,
+      topCategories
+    );
+    const result = await model.generateContent(prompt);
+    insights = result.response.text();
+  } catch (error) {
+    console.error("AI Insight generation failed:", error);
+  }
 
   return {
-    income: convertToRupeeUnit(totalIncome),
-    expenses: convertToRupeeUnit(totalExpenses),
-    balance: convertToRupeeUnit(availableBalance),
+    period: periodLabel,
+    summary: {
+      income: convertToRupeeUnit(totalIncome),
+      expenses: convertToRupeeUnit(totalExpenses),
+      balance: convertToRupeeUnit(availableBalance),
+      savingsRate: Number(savingsRate.toFixed(2)),
+      topCategories,
+    },
+    insights,
   };
 };

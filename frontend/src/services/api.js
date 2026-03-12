@@ -23,7 +23,16 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const { status, config } = error.response || {};
+    
+    // Don't redirect if it's a 401 on login, register, or verify-otp endpoints
+    const isAuthPath = config?.url?.includes('/auth/login') || 
+                      config?.url?.includes('/auth/register') || 
+                      config?.url?.includes('/auth/verify-otp') ||
+                      config?.url?.includes('/auth/send-otp') ||
+                      config?.url?.includes('/auth/status');
+
+    if (status === 401 && !isAuthPath) {
       localStorage.removeItem("token")
       localStorage.removeItem("user")
       window.location.href = "/login"
@@ -35,9 +44,11 @@ api.interceptors.response.use(
 export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
   register: (userData) => api.post("/auth/register", userData),
-  getCurrentUser: () => api.get("/auth/current-user"),
+  getCurrentUser: () => api.get("/users/current-user"),
   sendOTP: (email) => api.post("/auth/send-otp", { email }),
   verifyOTP: (email, otp) => api.post("/auth/verify-otp", { email, otp }),
+  resetPassword: (email, otp, newPassword) => api.post("/auth/reset-password", { email, otp, newPassword }),
+  getAuthStatus: () => api.get("/auth/status"),
   logout: () => {
     localStorage.removeItem("token")
     localStorage.removeItem("user")
@@ -45,29 +56,41 @@ export const authAPI = {
 }
 
 export const transactionAPI = {
-  getAll: () => api.get("/transaction"),
-  create: (data) => api.post("/transaction", data),
-  update: (id, data) => api.put(`/transaction/${id}`, data),
-  delete: (id) => api.delete(`/transaction/${id}`),
-}
-
-export const reportAPI = {
-  getAll: () => api.get("/report"),
-  create: (data) => api.post("/report", data),
-}
-
-export const userAPI = {
-  updateProfile: (data) => api.put("/user/update", data),
-  uploadProfilePicture: (formData) =>
-    api.put("/user/update", formData, {
+  getAll: (params) => api.get("/transactions", { params }),
+  getById: (id) => api.get(`/transactions/${id}`),
+  create: (data) => api.post("/transactions", data),
+  update: (id, data) => api.put(`/transactions/${id}`, data),
+  delete: (id) => api.delete(`/transactions/${id}`),
+  duplicate: (id) => api.post(`/transactions/${id}/duplicate`),
+  scanReceipt: (formData) =>
+    api.post("/transactions/scan-receipt", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
 }
 
-export const budgetAPI = {
-  getMonthlyBudget: () => api.get("/report/budget"),
-  setBudget: (amount) => api.post("/report/budget", { amount }),
-  getBudgetUsage: () => api.get("/report/budget-usage"),
+export const reportAPI = {
+  getAll: (params) => api.get("/reports/all", { params }),
+  generate: (params) => api.get("/reports/generate", { params }),
+  updateSettings: (data) => api.put("/reports/update-setting", data),
+}
+
+export const analyticsAPI = {
+  getSummary: (params) => api.get("/analytics/summary", { params }),
+  getChart: (params) => api.get("/analytics/chart", { params }),
+  getExpenseBreakdown: (params) => api.get("/analytics/expense-breakdown", { params }),
+}
+
+export const userAPI = {
+  updateProfile: (data) => api.put("/users/update", data),
+  uploadProfilePicture: (formData) =>
+    api.put("/users/update", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+}
+
+export const aiAPI = {
+  chat: (message, history) => api.post("/ai/chat", { message, history }),
+  getInsights: (transactions) => api.post("/ai/insights", { transactions }),
 }
 
 export default api

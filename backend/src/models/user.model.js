@@ -25,6 +25,22 @@ const userSchema = new Schema(
       required: true,
       select: false,
     },
+    monthlyBudget: {
+      type: Number,
+      default: 0,
+    },
+    otp: {
+      type: String,
+      select: false,
+    },
+    otpExpires: {
+      type: Date,
+      select: false,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

@@ -4,6 +4,9 @@ import { asyncHandler } from "../middlewares/asyncHandler.middleware.js";
 import {
   loginService,
   registerService,
+  sendOTPService,
+  verifyOTPService,
+  resetPasswordService
 } from "../services/auth.service.js";
 
 import {
@@ -12,9 +15,10 @@ import {
 } from "../validators/auth.validator.js";
 
 import UserModel from "../models/user.model.js";
-import { NotFoundException } from "../utils/app-error.js";
+import { BadRequestException, NotFoundException } from "../utils/app-error.js";
 import { signJwtToken } from "../utils/jwt.js";
 import { sendEmail } from "../mailers/mailer.js";
+import { Env } from "../config/env.config.js";
 
 /* -------------------------------------------------------------------------- */
 /*                                REGISTER                                    */
@@ -42,33 +46,65 @@ export const LoginController = asyncHandler(async (req, res) => {
   });
 });
 
+
+
 /* -------------------------------------------------------------------------- */
 /*                           FORGOT PASSWORD                                   */
 /* -------------------------------------------------------------------------- */
 export const ForgotPasswordController = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  if (!email) throw new BadRequestException("Email is required");
 
-  const user = await UserModel.findOne({ email });
-  if (!user) {
-    throw new NotFoundException("User not found");
-  }
-
-  const { token } = signJwtToken({ userId: user.id });
-
-  const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-
-  await sendEmail({
-    to: email,
-    subject: "Reset your password",
-    text: resetLink,
-    html: `
-      <h3>Password Reset</h3>
-      <p>Click the link below to reset your password:</p>
-      <a href="${resetLink}">${resetLink}</a>
-    `,
-  });
+  const result = await sendOTPService(email);
 
   return res.status(HTTPSTATUS.OK).json({
-    message: "Reset password email sent",
+    message: "Reset password OTP sent to your email",
+    data: result,
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*                            RESET PASSWORD                                   */
+/* -------------------------------------------------------------------------- */
+export const ResetPasswordController = asyncHandler(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) {
+    throw new BadRequestException("Email, OTP and new password are required");
+  }
+
+  const result = await resetPasswordService(email, otp, newPassword);
+
+  return res.status(HTTPSTATUS.OK).json({
+    message: "Password reset successful",
+    data: result,
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*                                  SEND OTP                                  */
+/* -------------------------------------------------------------------------- */
+export const SendOTPController = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) throw new BadRequestException("Email is required");
+
+  const result = await sendOTPService(email);
+  return res.status(HTTPSTATUS.OK).json({
+    message: "OTP sent successfully",
+    data: result,
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*                                  VERIFY OTP                                */
+/* -------------------------------------------------------------------------- */
+export const VerifyOTPController = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  if (!email || !otp)
+    throw new BadRequestException("Email and OTP are required");
+
+  const result = await verifyOTPService(email, otp);
+  return res.status(HTTPSTATUS.OK).json({
+    message: "OTP verified successfully",
+    data: result,
   });
 });

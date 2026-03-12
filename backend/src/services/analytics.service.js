@@ -23,8 +23,8 @@ export const summaryAnalyticsService = async (
         userId: new mongoose.Types.ObjectId(userId),
         ...(from &&
           to && {
-            date: { $gte: from, $lte: to },
-          }),
+          date: { $gte: from, $lte: to },
+        }),
       },
     },
     {
@@ -55,11 +55,14 @@ export const summaryAnalyticsService = async (
   const totalIncome = result?.totalIncome || 0;
   const totalExpenses = result?.totalExpenses || 0;
   const availableBalance = totalIncome - totalExpenses;
+  const savingsRate =
+    totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 
   return {
     totalIncome: convertToRupeeUnit(totalIncome),
     totalExpenses: convertToRupeeUnit(totalExpenses),
     availableBalance: convertToRupeeUnit(availableBalance),
+    savingsRate: Number(savingsRate.toFixed(2)),
   };
 };
 
@@ -80,8 +83,8 @@ export const chartAnalyticsService = async (
         userId: new mongoose.Types.ObjectId(userId),
         ...(from &&
           to && {
-            date: { $gte: from, $lte: to },
-          }),
+          date: { $gte: from, $lte: to },
+        }),
       },
     },
     {
@@ -131,8 +134,8 @@ export const expensePieChartBreakdownService = async (
         type: TransactionTypeEnum.EXPENSE,
         ...(from &&
           to && {
-            date: { $gte: from, $lte: to },
-          }),
+          date: { $gte: from, $lte: to },
+        }),
       },
     },
     {

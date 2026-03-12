@@ -14,7 +14,7 @@ import { upload } from "../config/cloudinary.config.js";
 
 const transactionRoutes = Router();
 
-transactionRoutes.post("/create", createTransactionController);
+transactionRoutes.post("/", createTransactionController);
 
 transactionRoutes.post(
   "/scan-receipt",
@@ -22,14 +22,14 @@ transactionRoutes.post(
   scanReceiptController
 );
 
-transactionRoutes.post("/bulk-transaction", bulkTransactionController);
+transactionRoutes.post("/bulk", bulkTransactionController);
 
-transactionRoutes.put("/duplicate/:id", duplicateTransactionController);
-transactionRoutes.put("/update/:id", updateTransactionController);
+transactionRoutes.post("/:id/duplicate", duplicateTransactionController);
+transactionRoutes.put("/:id", updateTransactionController);
 
-transactionRoutes.get("/all", getAllTransactionController);
+transactionRoutes.get("/", getAllTransactionController);
 transactionRoutes.get("/:id", getTransactionByIdController);
-transactionRoutes.delete("/delete/:id", deleteTransactionController);
-transactionRoutes.delete("/bulk-delete", bulkDeleteTransactionController);
+transactionRoutes.delete("/:id", deleteTransactionController);
+transactionRoutes.delete("/bulk", bulkDeleteTransactionController);
 
 export default transactionRoutes;

@@ -29,6 +29,7 @@
     "multer-storage-cloudinary": "^2.2.1",
     "node-cron": "^3.0.3",
     "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
     "resend": "^4.5.1",
     "uuid": "^11.0.0",

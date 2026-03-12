@@ -16,6 +16,7 @@ import userRoutes from "./routes/user.route.js";
 import transactionRoutes from "./routes/transaction.route.js";
 import reportRoutes from "./routes/report.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
+import aiRoutes from "./routes/ai.route.js";
 
 import { passportAuthenticateJwt } from "./config/passport.config.js";
 import { initializeCrons } from "./cron/index.js";
@@ -37,6 +38,7 @@ app.use(`${Env.BASE_PATH}/users`, passportAuthenticateJwt, userRoutes);
 app.use(`${Env.BASE_PATH}/transactions`, passportAuthenticateJwt, transactionRoutes);
 app.use(`${Env.BASE_PATH}/reports`, passportAuthenticateJwt, reportRoutes);
 app.use(`${Env.BASE_PATH}/analytics`, passportAuthenticateJwt, analyticsRoutes);
+app.use(`${Env.BASE_PATH}/ai`, passportAuthenticateJwt, aiRoutes);
 
 /* -------------------- Health Check -------------------- */
 

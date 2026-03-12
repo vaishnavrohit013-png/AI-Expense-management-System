@@ -38,7 +38,13 @@ export const chartAnalyticsController = asyncHandler(async (req, res) => {
 
   return res.status(HTTPSTATUS.OK).json({
     message: "Chart fetched successfully",
-    data: chartData,
+    data: {
+      chartData: chartData.map((item) => ({
+        date: item._id,
+        income: item.totalIncome / 100,
+        expense: item.totalExpenses / 100,
+      })),
+    },
   });
 });
 
@@ -54,9 +60,19 @@ export const expensePieChartBreakdownController = asyncHandler(
       to ? new Date(to) : undefined
     );
 
+    const totalExpense = pieChartData.reduce((acc, curr) => acc + curr.total, 0);
+
+    const categories = {};
+    pieChartData.forEach((item) => {
+      categories[item._id] = {
+        amount: item.total / 100,
+        percentage: totalExpense > 0 ? Number(((item.total / totalExpense) * 100).toFixed(2)) : 0,
+      };
+    });
+
     return res.status(HTTPSTATUS.OK).json({
       message: "Expense breakdown fetched successfully",
-      data: pieChartData,
+      data: { categories },
     });
   }
 );
