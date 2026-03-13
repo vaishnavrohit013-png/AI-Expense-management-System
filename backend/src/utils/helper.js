@@ -4,12 +4,16 @@ import {
   addWeeks,
   addYears,
   startOfMonth,
+  startOfWeek
 } from "date-fns";
 
 import { RecurringIntervalEnum } from "../models/transaction.model.js";
 
-export const calulateNextReportDate = (lastSentDate) => {
+export const calulateNextReportDate = (lastSentDate, frequency = "MONTHLY") => {
   const lastSent = lastSentDate || new Date();
+  if (frequency === "WEEKLY") {
+    return startOfWeek(addWeeks(lastSent, 1), { weekStartsOn: 1 }); // Starts on Monday
+  }
   return startOfMonth(addMonths(lastSent, 1));
 };
 

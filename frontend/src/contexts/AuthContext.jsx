@@ -11,16 +11,32 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         const initAuth = async () => {
             const token = getToken();
+            const cachedUser = getCurrentUser();
+
+            // If we have a cached user, trust it immediately and verify in background
+            if (cachedUser) {
+                setLoading(false);
+            }
+
             if (token) {
                 try {
                     const response = await authAPI.getCurrentUser();
-                    setUser(response.data.user);
-                    setCurrentUser(response.data.user);
+                    const fetchedUser = response.data?.user || response.data?.data;
+                    if (fetchedUser) {
+                        setUser(fetchedUser);
+                        setCurrentUser(fetchedUser);
+                    }
                 } catch (error) {
-                    console.error("Auth init error:", error);
-                    logout();
+                    // Only force logout on 401 Unauthorized (invalid/expired token)
+                    if (error.response?.status === 401) {
+                        console.error("Token expired, logging out");
+                        logout();
+                    } else {
+                        console.warn("Auth check failed (non-auth error), keeping session:", error.message);
+                    }
                 }
             }
+
             setLoading(false);
         };
 

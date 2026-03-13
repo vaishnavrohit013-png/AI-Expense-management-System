@@ -11,8 +11,10 @@ import {
   Camera,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  Mic
 } from 'lucide-react';
+import { aiAPI } from '../services/api';
 import Layout from '../components/Layout';
 
 const AddTransaction = () => {
@@ -20,6 +22,7 @@ const AddTransaction = () => {
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [listening, setListening] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     type: 'EXPENSE',
@@ -73,6 +76,56 @@ const AddTransaction = () => {
     }
   };
 
+  const handleVoiceEntry = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("Voice recognition is not supported in your browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setListening(true);
+      setError(null);
+    };
+
+    recognition.onresult = async (event) => {
+      setListening(false);
+      const transcript = event.results[0][0].transcript;
+      setLoading(true);
+      try {
+        const res = await aiAPI.extractVoice(transcript);
+        if (res.data.data) {
+          const { amount, category, merchant, date, title } = res.data.data;
+          setFormData(prev => ({
+            ...prev,
+            amount: amount?.toString() || '',
+            category: category || prev.category,
+            description: merchant || prev.description,
+            title: title || prev.title,
+            date: date ? new Date(date).toISOString().split('T')[0] : prev.date
+          }));
+        }
+      } catch (err) {
+        console.error("Voice extraction error:", err);
+        setError("AI failed to extract expense from voice.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      setListening(false);
+      setError("Voice recognition error: " + event.error);
+    };
+
+    recognition.start();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.amount || !formData.category || !formData.title) {
@@ -124,6 +177,27 @@ const AddTransaction = () => {
               <>
                 <Camera size={20} className="group-hover:rotate-12 transition-transform" />
                 Analyze Receipt with AI_
+              </>
+            )}
+          </button>
+          
+          <button 
+            type="button"
+            onClick={handleVoiceEntry}
+            disabled={listening || loading}
+            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 transition-all shadow-xl shadow-slate-100 border-b-4 active:scale-95 group ${
+                listening ? 'bg-red-600 text-white border-red-800' : 'bg-slate-900 text-white hover:bg-black border-slate-700'
+            }`}
+          >
+            {listening ? (
+              <>
+                <Mic className="animate-pulse" size={20} />
+                Listening... (Speak "Add 500 for groceries")
+              </>
+            ) : (
+              <>
+                <Mic size={20} className="group-hover:scale-110 transition-transform" />
+                🎙 Voice Expense Entry
               </>
             )}
           </button>

@@ -1,4 +1,4 @@
-import { endOfMonth, format, startOfMonth, subMonths } from "date-fns";
+import { endOfMonth, format, startOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks } from "date-fns";
 import mongoose from "mongoose";
 
 import ReportSettingModel from "../../models/report-setting.model.js";
@@ -9,19 +9,25 @@ import { sendReportEmail } from "../../mailers/report.mailer.js";
 
 const { ReportStatusEnum } = ReportModel;
 
-export const processReportJob = async () => {
+export const processReportJob = async (frequency = "MONTHLY") => {
   const now = new Date();
 
   let processedCount = 0;
   let failedCount = 0;
 
-  // Run previous month report
-  const from = startOfMonth(subMonths(now, 1));
-  const to = endOfMonth(subMonths(now, 1));
+  // Run previous period report based on frequency
+  const from = frequency === "WEEKLY" 
+    ? startOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }) 
+    : startOfMonth(subMonths(now, 1));
+    
+  const to = frequency === "WEEKLY" 
+    ? endOfWeek(subWeeks(now, 1), { weekStartsOn: 1 }) 
+    : endOfMonth(subMonths(now, 1));
 
   try {
     const reportSettingCursor = ReportSettingModel.find({
       isEnabled: true,
+      frequency,
       nextReportDate: { $lte: now },
     })
       .populate("userId")
@@ -91,7 +97,7 @@ export const processReportJob = async () => {
                 update: {
                   $set: {
                     lastSentDate: now,
-                    nextReportDate: calulateNextReportDate(now),
+                    nextReportDate: calulateNextReportDate(now, frequency),
                     updatedAt: now,
                   },
                 },
@@ -121,7 +127,7 @@ export const processReportJob = async () => {
                 update: {
                   $set: {
                     lastSentDate: null,
-                    nextReportDate: calulateNextReportDate(now),
+                    nextReportDate: calulateNextReportDate(now, frequency),
                     updatedAt: now,
                   },
                 },

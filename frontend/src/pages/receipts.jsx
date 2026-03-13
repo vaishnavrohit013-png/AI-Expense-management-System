@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { transactionAPI } from '../services/api';
 import {
   FileText,
   Search,
@@ -59,13 +60,30 @@ const Receipts = () => {
   const [showToast, setShowToast] = useState(null); // { type, message }
   const fileInputRef = useRef(null);
 
-  const initialReceipts = [
-    { id: 1, title: 'Dinner Exp', merchant: 'Paradise Biryani', amount: '1,250', date: 'Feb 25, 2024', status: 'Verified' },
-    { id: 2, title: 'Gas Fuel', merchant: 'HP Petrol', amount: '4,500', date: 'Feb 21, 2024', status: 'Verified' },
-    { id: 3, title: 'Home WiFi', merchant: 'ACT Fibernet', amount: '1,299', date: 'Feb 15, 2024', status: 'Pending' },
-    { id: 4, title: 'Cloud Sub', merchant: 'AWS India', amount: '2,499', date: 'Feb 10, 2024', status: 'Verified' },
-  ];
-  const [receipts, setReceipts] = useState(initialReceipts);
+  const [receipts, setReceipts] = useState([]);
+
+  useEffect(() => {
+    fetchReceipts();
+  }, []);
+
+  const fetchReceipts = async () => {
+    try {
+      const res = await transactionAPI.getAll({ limit: 50 });
+      const transactions = res.data.transactions || [];
+      const receiptTransactions = transactions.filter(t => t.receiptUrl);
+      setReceipts(receiptTransactions.map(t => ({
+        id: t._id,
+        title: t.title,
+        merchant: t.description || 'Unknown Merchant',
+        amount: t.amount,
+        date: new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        status: t.status === 'COMPLETED' ? 'Verified' : 'Pending',
+        receiptUrl: t.receiptUrl
+      })));
+    } catch (error) {
+       console.error("Failed to load receipts", error);
+    }
+  };
 
   const triggerToast = (type, message) => {
     setShowToast({ type, message });
@@ -76,32 +94,55 @@ const Receipts = () => {
     fileInputRef.current.click();
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
       setIsUploading(true);
       triggerToast('info', 'Secure upload initiated...');
       
-      // Simulate upload process
-      setTimeout(() => {
+      const formData = new FormData();
+      formData.append('receipt', file);
+
+      try {
+        const scanRes = await transactionAPI.scanReceipt(formData);
+        if (scanRes.data.data) {
+          triggerToast('info', 'AI extracted details, auto-creating expense...');
+          const { amount, category, description, date, title, receiptUrl, type, paymentMethod } = scanRes.data.data;
+          
+          await transactionAPI.create({
+              title: title || 'Scanned Receipt',
+              amount: parseFloat(amount) || 0,
+              category: category || 'Other',
+              date: date ? new Date(date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+              description: description || 'Auto-entered from receipt',
+              type: type || 'EXPENSE',
+              paymentMethod: paymentMethod || 'CASH',
+              receiptUrl: receiptUrl
+          });
+
+          triggerToast('success', 'Document analyzed and expense created.');
+          fetchReceipts();
+        } else {
+           triggerToast('error', 'AI could not read the receipt');
+        }
+      } catch (err) {
+        console.error(err);
+        triggerToast('error', err.response?.data?.message || 'Failed to process receipt');
+      } finally {
         setIsUploading(false);
-        const newReceipt = {
-            id: Date.now(),
-            title: 'New Scan',
-            merchant: 'AI Analyzing...',
-            amount: '0.00',
-            date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            status: 'Processing'
-        };
-        setReceipts([newReceipt, ...receipts]);
-        triggerToast('success', 'Document analyzed by AI successfully.');
-      }, 2000);
+      }
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
       if (window.confirm("Purge selected document from archive?")) {
-          setReceipts(receipts.filter(r => r.id !== id));
-          triggerToast('success', 'Document deleted.');
+          try {
+             await transactionAPI.delete(id);
+             setReceipts(receipts.filter(r => r.id !== id));
+             triggerToast('success', 'Document deleted.');
+          } catch(err) {
+             triggerToast('error', 'Failed to delete');
+          }
       }
   };
 

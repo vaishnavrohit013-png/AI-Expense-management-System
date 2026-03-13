@@ -44,14 +44,14 @@ const Register = () => {
 
     return (
         <div className="min-h-screen bg-[#fdfcfb] flex flex-col items-center justify-center p-6 font-['Inter'] selection:bg-blue-100 selection:text-blue-900">
-            <Link to="/" className="mb-8 text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Finance <span className="text-blue-600">Archive_</span></Link>
+            <Link to="/" className="mb-8 text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Finance <span className="text-blue-600">App</span></Link>
 
             <div className="w-full max-w-[560px]">
                 {/* Register Card */}
                 <div className="bg-white rounded-[3.5rem] p-12 md:p-16 border border-slate-100 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.05)]">
                     <div className="mb-12">
-                        <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-none italic uppercase">Initialize <br/> <span className="text-blue-600">Protocol_</span></h1>
-                        <p className="text-slate-400 font-medium text-lg italic tracking-tight opacity-70">Begin your financial evolution_</p>
+                        <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-none italic uppercase">Create <br/> <span className="text-blue-600">Account</span></h1>
+                        <p className="text-slate-400 font-medium text-lg italic tracking-tight opacity-70">Start managing your money</p>
                     </div>
 
                     <form onSubmit={handleRegister} className="space-y-6">
@@ -114,13 +114,13 @@ const Register = () => {
                             disabled={loading}
                             className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs transition-all hover:bg-blue-700 active:scale-95 mt-6 flex justify-center items-center shadow-2xl shadow-blue-100 border-b-4 border-blue-800"
                         >
-                            {loading ? <Loader2 className="animate-spin w-6 h-6" /> : 'Deploy Node_'}
+                            {loading ? <Loader2 className="animate-spin w-6 h-6" /> : 'Sign Up'}
                         </button>
                     </form>
 
                     <div className="mt-12 text-center">
                         <p className="text-slate-400 font-medium">
-                            Linked already? <Link to="/login" className="text-blue-600 font-black hover:underline uppercase tracking-[0.2em] text-[10px] ml-2">Authorize Access_</Link>
+                            Already have an account? <Link to="/login" className="text-blue-600 font-black hover:underline uppercase tracking-[0.2em] text-[10px] ml-2">Log In</Link>
                         </p>
                     </div>
                 </div>

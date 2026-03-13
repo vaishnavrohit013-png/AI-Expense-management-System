@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 export const ReportFrequencyEnum = {
+  WEEKLY: "WEEKLY",
   MONTHLY: "MONTHLY",
 };
 

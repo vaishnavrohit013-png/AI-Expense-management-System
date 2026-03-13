@@ -91,6 +91,7 @@ export const userAPI = {
 export const aiAPI = {
   chat: (message, history) => api.post("/ai/chat", { message, history }),
   getInsights: (transactions) => api.post("/ai/insights", { transactions }),
+  extractVoice: (text) => api.post("/ai/extract-voice", { text }),
 }
 
 export default api
