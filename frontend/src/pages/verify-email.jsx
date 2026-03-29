@@ -12,12 +12,14 @@ import {
     Clock
 } from 'lucide-react';
 import { authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const VerifyEmail = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
+    const { login } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const email = location.state?.email || 'user@example.com';
@@ -51,9 +53,16 @@ const VerifyEmail = () => {
         setLoading(true);
         setError('');
         try {
-            await authAPI.verifyOTP(email, otpString);
+            const res = await authAPI.verifyOTP(email, otpString);
+            const { accessToken, user } = res.data.data || res.data;
+            
+            // Auto-login
+            if (accessToken && user) {
+                login(accessToken, user);
+            }
+            
             setSuccess(true);
-            setTimeout(() => navigate('/login'), 3000);
+            setTimeout(() => navigate('/dashboard'), 2000);
         } catch (error) {
             console.error("Verification failed:", error);
             setError(error.response?.data?.message || "Invalid code sequence.");

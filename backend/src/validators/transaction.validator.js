@@ -44,6 +44,7 @@ export const baseTransactionSchema = z.object({
     .optional(),
 
   receiptUrl: z.string().optional(),
+  merchant: z.string().optional(),
 
   paymentMethod: z
     .enum([

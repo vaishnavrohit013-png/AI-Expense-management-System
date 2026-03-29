@@ -33,8 +33,10 @@ export const registerService = async (body) => {
         throw new BadRequestException("User already exists");
       }
 
-      const newUser = new UserModel(body);
-      newUser.isEmailVerified = true;
+      const newUser = new UserModel({
+        ...body,
+        isEmailVerified: true, // Mark verified immediately
+      });
       await newUser.save({ session });
 
       const reportSetting = new ReportSettingModel({
@@ -47,7 +49,7 @@ export const registerService = async (body) => {
 
       await reportSetting.save({ session });
 
-      const { token } = signJwtToken({
+      const { token, expiresAt } = signJwtToken({
         userId: newUser._id.toString(),
       });
 
@@ -58,39 +60,11 @@ export const registerService = async (body) => {
           email: newUser.email,
         },
         accessToken: token,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Default 1 day
-        message: "Account created successfully",
+        expiresAt,
+        message: "Account created successfully.",
       };
       console.log("Transaction successfully completed for user:", newUser.email);
     });
-
-    // Send welcome email outside transaction
-    if (createdUser) {
-      const { user } = createdUser;
-      
-      if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY !== "test") {
-        try {
-          await sendEmail({
-            to: user.email,
-            subject: "Welcome to FinanceAI",
-            html: `
-              <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-                <h2 style="color: #4f46e5; text-align: center;">Welcome to FinanceAI!</h2>
-                <p>Hello ${user.name},</p>
-                <p>Your account has been created successfully. You can now start managing your expenses intelligently.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${process.env.FRONTEND_ORIGIN}/dashboard" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Go to Dashboard</a>
-                </div>
-                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-                <p style="text-align: center; color: #94a3b8; font-size: 12px;">&copy; 2026 FinanceAI Inc. All rights reserved.</p>
-              </div>
-            `,
-          });
-        } catch (emailError) {
-          console.error("Error sending welcome email:", emailError);
-        }
-      }
-    }
 
     return createdUser;
   } catch (error) {

@@ -59,8 +59,6 @@ const transactionSchema = new Schema(
     amount: {
       type: Number,
       required: true,
-      set: (value) => convertToPaise(value),
-      get: (value) => convertToRupeeUnit(value),
     },
 
     description: {
@@ -70,6 +68,10 @@ const transactionSchema = new Schema(
     category: {
       type: String,
       required: true,
+    },
+
+    merchant: {
+      type: String,
     },
 
     receiptUrl: {

@@ -179,6 +179,7 @@ export const updateTransactionService = async (
     ...(body.title && { title: body.title }),
     ...(body.description && { description: body.description }),
     ...(body.category && { category: body.category }),
+    ...(body.merchant && { merchant: body.merchant }),
     ...(body.type && { type: body.type }),
     ...(body.paymentMethod && { paymentMethod: body.paymentMethod }),
     ...(body.amount !== undefined && { amount: convertToPaise(body.amount) }),
@@ -195,7 +196,7 @@ export const deleteTransactionService = async (
   userId,
   transactionId
 ) => {
-  const deleted = await TransactionModel.findByIdAndDelete({
+  const deleted = await TransactionModel.findOneAndDelete({
     _id: transactionId,
     userId,
   });

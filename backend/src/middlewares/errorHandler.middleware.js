@@ -16,7 +16,7 @@ export const errorHandler = (error, req, res, next) => {
   if (error instanceof ZodError) {
     return res.status(HTTPSTATUS.BAD_REQUEST).json({
       message: "Validation Error",
-      errors: error.errors.map(err => ({
+      errors: (error.errors || []).map(err => ({
         path: err.path.join('.'),
         message: err.message
       }))

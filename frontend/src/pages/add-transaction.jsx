@@ -2,19 +2,14 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { transactionAPI } from '../services/api';
 import {
-  ArrowLeft,
-  Calendar as CalendarIcon,
-  Tag,
-  FileText,
-  CreditCard,
-  Loader2,
   Camera,
-  Check,
-  X,
+  Loader2,
   AlertCircle,
-  Mic
+  CheckCircle2,
+  ArrowDown,
+  ArrowUp,
+  Calendar as CalendarIcon
 } from 'lucide-react';
-import { aiAPI } from '../services/api';
 import Layout from '../components/Layout';
 
 const AddTransaction = () => {
@@ -22,24 +17,24 @@ const AddTransaction = () => {
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [listening, setListening] = useState(false);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState({
     type: 'EXPENSE',
     amount: '',
-    category: '',
+    category: 'Food',
     date: new Date().toISOString().split('T')[0],
     description: '',
-    isRecurring: false,
-    paymentMethod: 'CASH'
+    merchant: ''
   });
 
+  const categories = ['Food', 'Income', 'Utilities', 'Transport', 'Entertainment', 'Health', 'Shopping', 'Other'];
+
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({ 
-      ...prev, 
-      [name]: type === 'checkbox' ? checked : value 
-    }));
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setError(null);
+    setSuccess(null);
   };
 
   const handleScanClick = () => {
@@ -54,6 +49,7 @@ const AddTransaction = () => {
       
       setScanning(true);
       setError(null);
+      setSuccess(null);
       try {
         const res = await transactionAPI.scanReceipt(scanData);
         if (res.data.data) {
@@ -66,6 +62,7 @@ const AddTransaction = () => {
             date: date ? new Date(date).toISOString().split('T')[0] : prev.date,
             type: type || prev.type
           }));
+          setSuccess("Receipt scanned successfully!");
         }
       } catch (err) {
         console.error("Scanning error:", err);
@@ -76,61 +73,11 @@ const AddTransaction = () => {
     }
   };
 
-  const handleVoiceEntry = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError("Voice recognition is not supported in your browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setListening(true);
-      setError(null);
-    };
-
-    recognition.onresult = async (event) => {
-      setListening(false);
-      const transcript = event.results[0][0].transcript;
-      setLoading(true);
-      try {
-        const res = await aiAPI.extractVoice(transcript);
-        if (res.data.data) {
-          const { amount, category, merchant, date, title } = res.data.data;
-          setFormData(prev => ({
-            ...prev,
-            amount: amount?.toString() || '',
-            category: category || prev.category,
-            description: merchant || prev.description,
-            title: title || prev.title,
-            date: date ? new Date(date).toISOString().split('T')[0] : prev.date
-          }));
-        }
-      } catch (err) {
-        console.error("Voice extraction error:", err);
-        setError("AI failed to extract expense from voice.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    recognition.onerror = (event) => {
-      setListening(false);
-      setError("Voice recognition error: " + event.error);
-    };
-
-    recognition.start();
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.amount || !formData.category || !formData.title) {
-        // Fallback title if missing
-        if (!formData.title) formData.title = formData.description || "Untitled Transaction";
+    if (!formData.amount || !formData.category || !formData.description) {
+        setError("Please fill out all required fields.");
+        return;
     }
 
     setLoading(true);
@@ -138,12 +85,16 @@ const AddTransaction = () => {
     try {
       await transactionAPI.create({
         ...formData,
-        amount: parseFloat(formData.amount)
+        title: formData.description,
+        amount: parseFloat(formData.amount.toString().replace(/[^\d.-]/g, ''))
       });
-      navigate('/dashboard');
+      setSuccess("Transaction added successfully!");
+      setTimeout(() => {
+        navigate('/transactions');
+      }, 1500);
     } catch (err) {
       console.error("Submission error:", err);
-      setError(err.response?.data?.message || "Failed to sync transaction to the vault.");
+      setError(err.response?.data?.message || "Failed to add transaction.");
     } finally {
       setLoading(false);
     }
@@ -151,194 +102,170 @@ const AddTransaction = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto py-10 px-4">
-        <h1 className="text-5xl font-black text-slate-900 mb-12 tracking-tight italic uppercase">Add <span className="text-blue-600">Entry</span>_</h1>
-
-        <div className="bg-white rounded-[3rem] border border-slate-100 shadow-sm p-12 space-y-10">
-          {/* Scan Button */}
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileChange} 
-            className="hidden" 
-            accept="image/*"
-          />
-          <button 
-            onClick={handleScanClick}
-            disabled={scanning}
-            className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 border-b-4 border-blue-800 active:scale-95 group"
-          >
-            {scanning ? (
-              <>
-                <Loader2 className="animate-spin" size={20} />
-                Scanning Architecture...
-              </>
-            ) : (
-              <>
-                <Camera size={20} className="group-hover:rotate-12 transition-transform" />
-                Analyze Receipt with AI_
-              </>
-            )}
-          </button>
+      <div className="max-w-xl mx-auto py-10 px-4">
+        
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
           
-          <button 
-            type="button"
-            onClick={handleVoiceEntry}
-            disabled={listening || loading}
-            className={`w-full py-6 rounded-[2rem] font-black uppercase tracking-widest text-xs flex items-center justify-center gap-4 transition-all shadow-xl shadow-slate-100 border-b-4 active:scale-95 group ${
-                listening ? 'bg-red-600 text-white border-red-800' : 'bg-slate-900 text-white hover:bg-black border-slate-700'
-            }`}
-          >
-            {listening ? (
-              <>
-                <Mic className="animate-pulse" size={20} />
-                Listening... (Speak "Add 500 for groceries")
-              </>
-            ) : (
-              <>
-                <Mic size={20} className="group-hover:scale-110 transition-transform" />
-                🎙 Voice Expense Entry
-              </>
-            )}
-          </button>
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Add Transaction</h1>
+            <p className="text-sm text-gray-500 mt-1">Record a new income or expense</p>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-                <div className="bg-rose-50 border border-rose-100 text-rose-500 p-6 rounded-2xl flex items-center gap-4 animate-shake">
-                    <AlertCircle size={20} />
-                    <span className="text-xs font-bold uppercase tracking-widest">{error}</span>
+                <div className="bg-red-50 text-red-600 p-4 rounded-xl flex items-center gap-3 text-sm animate-in slide-in-from-top-2">
+                    <AlertCircle size={18} />
+                    <span>{error}</span>
                 </div>
             )}
 
-            <div className="space-y-4">
-              <label className="text-sm font-bold text-slate-700">Transaction Title</label>
+            {success && (
+                <div className="bg-emerald-50 text-emerald-600 p-4 rounded-xl flex items-center gap-3 text-sm animate-in slide-in-from-top-2">
+                    <CheckCircle2 size={18} className="text-emerald-500" />
+                    <span>{success}</span>
+                </div>
+            )}
+
+            {/* Scan Button */}
+            <div>
               <input 
-                type="text"
-                name="title"
-                required
-                placeholder="e.g. Monthly Rent, Grocery Shopping"
-                value={formData.title || ''}
-                onChange={handleChange}
-                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileChange} 
+                className="hidden" 
+                accept="image/*"
               />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Type</label>
-              <select 
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
+              <button 
+                type="button"
+                onClick={handleScanClick}
+                disabled={scanning}
+                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
               >
-                <option value="EXPENSE">Expense Account</option>
-                <option value="INCOME">Income Source</option>
-              </select>
+                {scanning ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
+                {scanning ? 'Scanning...' : 'Scan Receipt with AI'}
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Amount</label>
+            {/* Type Toggle */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Type</label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, type: 'EXPENSE' })}
+                  className={`flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-semibold transition-colors ${
+                    formData.type === 'EXPENSE' 
+                      ? 'border-gray-200 bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5' 
+                      : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowDown size={16} /> Expense
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, type: 'INCOME' })}
+                  className={`flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-semibold transition-colors ${
+                    formData.type === 'INCOME' 
+                      ? 'border-gray-200 bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5' 
+                      : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  <ArrowUp size={16} /> Income
+                </button>
+              </div>
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Amount</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
                 <input 
-                  type="text"
+                  type="number"
                   name="amount"
                   placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  required
                   value={formData.amount}
                   onChange={handleChange}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  className="w-full pl-8 pr-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Payment Method</label>
-                <select 
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
-                  onChange={handleChange}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all font-bold"
-                >
-                  <option value="CASH">Cash Holdings</option>
-                  <option value="CARD">Debit/Credit Card</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="MOBILE_PAYMENT">Mobile/UPI</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Category</label>
-                <select 
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                >
-                  <option value="">Select category</option>
-                  <option value="Food">Food</option>
-                  <option value="Shopping">Shopping</option>
-                  <option value="Transport">Transport</option>
-                  <option value="Entertainment">Entertainment</option>
-                </select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700">Date</label>
-                <div className="relative">
-                  <input 
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleChange}
-                    className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                  />
-                  <CalendarIcon className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                </div>
               </div>
             </div>
 
+            {/* Description */}
             <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700">Description</label>
+              <label className="text-sm font-semibold text-gray-700">Description</label>
               <input 
                 type="text"
                 name="description"
-                placeholder="Enter description"
+                placeholder="What did you spend on?"
+                required
                 value={formData.description}
                 onChange={handleChange}
-                className="w-full p-4 bg-slate-50 border border-slate-100 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
               />
             </div>
 
-            <div className="p-6 bg-slate-50 rounded-2xl flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-slate-900">Recurring Transaction</h4>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Set up a recurring schedule for this transaction</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  name="isRecurring"
-                  checked={formData.isRecurring}
-                  onChange={handleChange}
-                  className="sr-only peer" 
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
+            {/* Merchant */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Merchant (Optional)</label>
+              <input 
+                type="text"
+                name="merchant"
+                placeholder="Store or vendor name"
+                value={formData.merchant}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+              />
             </div>
 
-            <div className="flex gap-6 pt-10">
+            {/* Category */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Category</label>
+              <select 
+                name="category"
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm appearance-none cursor-pointer"
+              >
+                {categories.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date */}
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-700">Date</label>
+              <div className="relative">
+                <input 
+                  type="date"
+                  name="date"
+                  required
+                  value={formData.date}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-4 pt-4">
               <button 
                 type="button"
                 onClick={() => navigate('/transactions')}
-                className="flex-1 py-6 border-2 border-slate-100 rounded-[2rem] font-black uppercase tracking-widest text-xs text-slate-400 hover:bg-slate-50 transition-all active:scale-95"
+                className="flex-1 py-3 border border-gray-200 bg-white text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-all"
               >
                 Cancel
               </button>
               <button 
                 type="submit"
                 disabled={loading}
-                className="flex-[2] py-6 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-2xl shadow-slate-200 flex items-center justify-center gap-3 border-b-4 border-slate-700 active:scale-95"
+                className="flex-1 py-3 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
               >
-                {loading ? <Loader2 className="animate-spin" size={20} /> : <Check size={20} />}
-                {loading ? 'Processing...' : 'Deploy Transaction_'}
+                {loading && <Loader2 className="animate-spin" size={16} />}
+                Add Transaction
               </button>
             </div>
           </form>

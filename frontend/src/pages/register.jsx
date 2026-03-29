@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
 
 const Register = () => {
@@ -8,119 +9,119 @@ const Register = () => {
         name: '',
         email: '',
         password: '',
-        confirmPassword: ''
     });
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState(false);
+    const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
         setRegisterData(prev => ({ ...prev, [name]: value }));
+        setError('');
     };
 
     const handleRegister = async (e) => {
         e.preventDefault();
-        if (registerData.password !== registerData.confirmPassword) {
-            alert("Passwords do not match.");
-            return;
-        }
-
+        setError('');
         setLoading(true);
         try {
-            await authAPI.register({
+            const response = await authAPI.register({
                 name: registerData.name,
                 email: registerData.email,
                 password: registerData.password
             });
-            alert("Account created successfully. Please verify your email.");
-            navigate('/verify-email', { state: { email: registerData.email } });
+            
+            const { accessToken, user } = response.data.data;
+            login(accessToken, user);
+            
+            setSuccess(true);
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 2000);
         } catch (error) {
             console.error("Registration failed:", error);
-            alert(error.response?.data?.message || "Registration failed. Please try again.");
+            setError(error.response?.data?.message || "Error during account creation.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#fdfcfb] flex flex-col items-center justify-center p-6 font-['Inter'] selection:bg-blue-100 selection:text-blue-900">
-            <Link to="/" className="mb-8 text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Finance <span className="text-blue-600">App</span></Link>
+        <div className="min-h-screen relative flex items-center justify-center p-6 selection:bg-[#003399]/20 selection:text-[#003399]">
+            {/* Background Layer */}
+            <div 
+                className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+                style={{ backgroundImage: "url('/images/auth_background.png')" }}
+            >
+                <div className="absolute inset-0 bg-black/60 backdrop-brightness-50"></div>
+            </div>
 
-            <div className="w-full max-w-[560px]">
-                {/* Register Card */}
-                <div className="bg-white rounded-[3.5rem] p-12 md:p-16 border border-slate-100 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.05)]">
-                    <div className="mb-12">
-                        <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-none italic uppercase">Create <br/> <span className="text-blue-600">Account</span></h1>
-                        <p className="text-slate-400 font-medium text-lg italic tracking-tight opacity-70">Start managing your money</p>
+            <div className="w-full max-w-[540px] relative z-10 animate-in fade-in zoom-in duration-700">
+                <div className="bg-black/80 backdrop-blur-xl rounded-[2rem] p-12 md:p-16 border border-white/5 shadow-2xl flex flex-col items-center">
+                    <div className="text-center space-y-4 mb-20">
+                        <h1 className="text-6xl font-black font-serif text-white tracking-tight">Create Account</h1>
+                        {/* Sub-header text removed as per user request */}
                     </div>
 
-                    <form onSubmit={handleRegister} className="space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-700 uppercase tracking-widest ml-1">Full Name</label>
+                    {error && (
+                        <div className="w-full mb-8 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-black uppercase tracking-widest text-center animate-in slide-in-from-top-4">
+                            {error}
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="w-full mb-8 p-4 bg-emerald-500/10 border border-emerald-100/20 rounded-xl text-emerald-400 text-[10px] font-black uppercase tracking-widest text-center animate-in slide-in-from-top-4">
+                            ACCOUNT CREATED SUCCESSFULLY! REDIRECTING...
+                        </div>
+                    )}
+
+                    <form onSubmit={handleRegister} className="w-full space-y-16">
+                        <div className="space-y-12">
                             <input
                                 type="text"
                                 name="name"
                                 required
-                                placeholder="Rohit"
+                                placeholder="Enter Your Name"
                                 value={registerData.name}
                                 onChange={handleChange}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold placeholder:text-slate-200"
+                                className="w-full bg-transparent border-b border-white py-2 text-white placeholder:text-gray-500 outline-none focus:border-[#1e40af] transition-colors text-lg"
                             />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-700 uppercase tracking-widest ml-1">Email ID</label>
+                            
                             <input
                                 type="email"
                                 name="email"
                                 required
-                                placeholder="vaishnavrohit013@gmail.com"
+                                placeholder="Enter Your Email"
                                 value={registerData.email}
                                 onChange={handleChange}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold placeholder:text-slate-200"
+                                className="w-full bg-transparent border-b border-white py-2 text-white placeholder:text-gray-300 outline-none focus:border-[#1e40af] transition-colors text-lg"
                             />
-                        </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-700 uppercase tracking-widest ml-1">Password</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    required
-                                    placeholder="••••••••"
-                                    value={registerData.password}
-                                    onChange={handleChange}
-                                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold placeholder:text-slate-200"
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-slate-700 uppercase tracking-widest ml-1">Confirm</label>
-                                <input
-                                    type="password"
-                                    name="confirmPassword"
-                                    required
-                                    placeholder="••••••••"
-                                    value={registerData.confirmPassword}
-                                    onChange={handleChange}
-                                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold placeholder:text-slate-200"
-                                />
-                            </div>
+                            <input
+                                type="password"
+                                name="password"
+                                required
+                                placeholder="Enter Your Password"
+                                value={registerData.password}
+                                onChange={handleChange}
+                                className="w-full bg-transparent border-b border-white py-2 text-white placeholder:text-gray-500 outline-none focus:border-[#1e40af] transition-colors text-lg"
+                            />
                         </div>
 
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs transition-all hover:bg-blue-700 active:scale-95 mt-6 flex justify-center items-center shadow-2xl shadow-blue-100 border-b-4 border-blue-800"
+                            disabled={loading || success}
+                            className="w-full py-5 bg-[#1e40af] text-white rounded-2xl font-black text-base tracking-widest transition-all hover:bg-blue-800 active:scale-[0.98] flex justify-center items-center shadow-xl shadow-blue-900/40 uppercase disabled:opacity-50"
                         >
-                            {loading ? <Loader2 className="animate-spin w-6 h-6" /> : 'Sign Up'}
+                            {loading ? <Loader2 className="animate-spin" /> : 'SIGN UP'}
                         </button>
                     </form>
 
-                    <div className="mt-12 text-center">
-                        <p className="text-slate-400 font-medium">
-                            Already have an account? <Link to="/login" className="text-blue-600 font-black hover:underline uppercase tracking-[0.2em] text-[10px] ml-2">Log In</Link>
+                    <div className="text-center mt-12">
+                        <p className="text-sm font-medium text-gray-300">
+                            Already have an account? <Link to="/login" className="text-white hover:text-blue-400 transition-colors ml-1 font-bold">Log in</Link>
                         </p>
                     </div>
                 </div>

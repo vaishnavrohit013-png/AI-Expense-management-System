@@ -8,6 +8,7 @@ const Login = () => {
     const [loginData, setLoginData] = useState({ email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const { login } = useAuth();
     const navigate = useNavigate();
 
@@ -15,85 +16,94 @@ const Login = () => {
         const { name, value } = e.target;
         setLoginData(prev => ({ ...prev, [name]: value }));
         setError('');
+        setSuccess('');
     };
 
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setSuccess('');
         try {
             const response = await authAPI.login(loginData.email, loginData.password);
             const { accessToken, user } = response.data.data;
             login(accessToken, user);
-            window.location.href = '/dashboard';
+            setSuccess('LOGIN SUCCESSFULLY! REDIRECTING TO DASHBOARD...');
+            setTimeout(() => {
+                window.location.href = '/dashboard';
+            }, 1500);
         } catch (err) {
             console.error("Login failed:", err);
-            setError(err.response?.data?.message || "Login failed. Please check your credentials.");
+            setError(err.response?.data?.message || "Invalid credentials provided.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-[#fdfcfb] flex flex-col items-center justify-center p-6 font-['Inter'] selection:bg-blue-100 selection:text-blue-900">
-            <Link to="/" className="mb-12 text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Finance <span className="text-blue-600">App</span></Link>
-            
-            <div className="w-full max-w-[520px]">
-                {/* Login Card */}
-                <div className="bg-white rounded-[3rem] p-12 md:p-16 border border-slate-100 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.05)]">
-                    <div className="mb-12">
-                        <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight leading-none italic uppercase">Welcome <br/> <span className="text-blue-600">Back</span></h1>
-                        <p className="text-slate-400 font-medium text-lg italic tracking-tight opacity-70">Sign in to your account</p>
+        <div className="min-h-screen relative flex items-center justify-center p-6 selection:bg-[#003399]/20 selection:text-[#003399]">
+            {/* Background Layer */}
+            <div 
+                className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+                style={{ backgroundImage: "url('/images/auth_background.png')" }}
+            >
+                <div className="absolute inset-0 bg-black/60 backdrop-brightness-50"></div>
+            </div>
+
+            <div className="w-full max-w-[520px] relative z-10 animate-in fade-in zoom-in duration-700">
+                <div className="bg-black/80 backdrop-blur-xl rounded-[2rem] p-12 md:p-16 border border-white/5 shadow-2xl flex flex-col items-center">
+                    <div className="text-center space-y-4 mb-20">
+                        <h1 className="text-6xl font-black font-serif text-white tracking-tight">FinanceAI</h1>
+                        <p className="text-gray-300 text-sm font-medium italic opacity-80">Login to continue your journey</p>
                     </div>
 
                     {error && (
-                        <div className="mb-8 p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm font-bold animate-fade-in flex items-center justify-center">
+                        <div className="w-full mb-8 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-black uppercase tracking-widest text-center animate-in slide-in-from-top-4">
                             {error}
                         </div>
                     )}
 
-                    <form onSubmit={handleLogin} className="space-y-8">
-                        <div className="space-y-3">
-                            <label className="text-xs font-black text-slate-700 uppercase tracking-widest ml-1">Email ID</label>
+                    {success && (
+                        <div className="w-full mb-8 p-4 bg-emerald-500/10 border border-emerald-100/20 rounded-xl text-emerald-400 text-[10px] font-black uppercase tracking-widest text-center animate-in slide-in-from-top-4">
+                            {success}
+                        </div>
+                    )}
+
+                    <form onSubmit={handleLogin} className="w-full space-y-16">
+                        <div className="space-y-12">
                             <input
                                 type="email"
                                 name="email"
                                 required
-                                placeholder="vaishnavrohit013@gmail.com"
+                                placeholder="Enter Your Email"
                                 value={loginData.email}
                                 onChange={handleChange}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold placeholder:text-slate-200"
+                                className="w-full bg-transparent border-b border-white py-2 text-white placeholder:text-gray-500 outline-none focus:border-[#1e40af] transition-colors text-lg"
                             />
-                        </div>
 
-                        <div className="space-y-3">
-                            <div className="flex justify-between items-center px-1">
-                                <label className="text-xs font-black text-slate-700 uppercase tracking-widest">Password</label>
-                                <Link to="/forgot-password" size="sm" className="text-[10px] font-black text-blue-600 uppercase tracking-widest hover:underline">Forgot password?</Link>
-                            </div>
                             <input
                                 type="password"
                                 name="password"
                                 required
-                                placeholder="••••••••"
+                                placeholder="Enter Your Password"
                                 value={loginData.password}
                                 onChange={handleChange}
-                                className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl outline-none focus:ring-4 focus:ring-blue-50 transition-all font-bold placeholder:text-slate-200"
+                                className="w-full bg-transparent border-b border-white py-2 text-white placeholder:text-gray-500 outline-none focus:border-[#1e40af] transition-colors text-lg"
                             />
                         </div>
 
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full py-6 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs transition-all hover:bg-blue-700 active:scale-95 mt-6 flex justify-center items-center shadow-2xl shadow-blue-100 border-b-4 border-blue-800"
+                            className="w-full py-5 bg-[#1e40af] text-white rounded-2xl font-black text-base tracking-widest transition-all hover:bg-blue-800 active:scale-[0.98] flex justify-center items-center shadow-xl shadow-blue-900/40 uppercase"
                         >
-                            {loading ? <Loader2 className="animate-spin w-6 h-6" /> : 'Log In'}
+                            {loading ? <Loader2 className="animate-spin" /> : 'LOGIN'}
                         </button>
                     </form>
 
-                    <div className="mt-12 text-center">
-                        <p className="text-slate-400 font-medium">
-                            Don't have an account? <Link to="/register" className="text-blue-600 font-black hover:underline uppercase tracking-[0.2em] text-[10px] ml-2">Sign Up</Link>
+                    <div className="text-center mt-12">
+                        <p className="text-sm font-medium text-gray-300">
+                            Don't have an account? <Link to="/register" className="text-white hover:text-blue-400 transition-colors ml-1 font-bold">Sign up</Link>
                         </p>
                     </div>
                 </div>

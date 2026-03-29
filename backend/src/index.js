@@ -1,3 +1,9 @@
+/**
+ * Backend Entry Point
+ * 
+ * This file initializes the Express server, connects to the database,
+ * and sets up all API routes.
+ */
 import "dotenv/config";
 import "./config/passport.config.js";
 
