@@ -1,134 +1,351 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  ArrowRight, 
-  BarChart3, 
-  Wallet, 
-  PieChart, 
-  ShieldCheck, 
-  Zap
+import {
+    ChevronDown,
+    ChevronUp,
+    LayoutGrid,
+    PieChart,
+    Globe,
+    FileText,
+    ShieldCheck,
+    Bell,
+    ArrowRight
 } from 'lucide-react';
 
-const Home = () => {
-    const features = [
-        {
-            title: "Transaction Synthesis",
-            desc: "Aggregate every financial node into a single, cohesive ledger.",
-            icon: Wallet
-        },
-        {
-            title: "Sector Analysis",
-            desc: "Visual distribution of resources across all category domains.",
-            icon: PieChart
-        },
-        {
-            title: "Secure Protocols",
-            desc: "Bank-grade encryption protecting your personal financial vault.",
-            icon: ShieldCheck
-        },
-        {
-            title: "Instant Verification",
-            desc: "Real-time updates as soon as your capital moves.",
-            icon: Zap
-        }
-    ];
+/* ─── Navbar ─────────────────────────────────────────────────── */
+const Navbar = () => (
+    <header style={{ background: '#ffffff', borderBottom: '1px solid #f0f0f0' }}>
+        <div
+            style={{
+                maxWidth: '1100px',
+                margin: '0 auto',
+                padding: '0 24px',
+                height: '60px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                position: 'relative',
+            }}
+        >
+            {/* Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                    style={{
+                        width: '34px', height: '34px',
+                        background: '#1a3471', borderRadius: '10px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                >
+                    <LayoutGrid size={15} color="#fff" />
+                </div>
+                <span style={{ fontWeight: '700', fontSize: '15px', color: '#111827' }}>ExpenseAI</span>
+            </div>
 
-    return (
-        <div className="min-h-screen bg-[#FAF9F6] selection:bg-[#003399]/10 selection:text-[#003399] font-sans">
-            {/* Global Navbar */}
-            <nav className="fixed top-0 left-0 right-0 z-50 bg-[#FAF9F6]/80 backdrop-blur-md px-8 py-6 flex justify-between items-center max-w-7xl mx-auto border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black font-serif italic tracking-tighter text-[#1e293b]">FinanceAI</span>
-                </div>
-                <div className="flex items-center gap-8 text-[11px] font-bold uppercase tracking-widest text-[#1e293b]/60">
-                    <Link to="/login" className="hover:text-[#003399] transition-colors">Authorization</Link>
-                    <Link to="/register" className="px-6 py-2.5 bg-[#003399] text-white rounded-md hover:bg-blue-800 transition-all shadow-lg shadow-blue-900/10 uppercase tracking-[0.2em] font-black text-[9px]">Get Started</Link>
-                </div>
+            {/* Center links */}
+            <nav
+                style={{
+                    position: 'absolute', left: '50%', transform: 'translateX(-50%)',
+                    display: 'flex', gap: '36px',
+                }}
+            >
+                <a href="#features" style={{ fontSize: '14px', color: '#6b7280', textDecoration: 'none', fontWeight: '500' }}>Features</a>
+                <a href="#how-it-works" style={{ fontSize: '14px', color: '#6b7280', textDecoration: 'none', fontWeight: '500' }}>How It Works</a>
             </nav>
 
-            {/* Hero Domain */}
-            <main className="pt-40 pb-20 px-6">
-                <div className="max-w-4xl mx-auto text-center space-y-12 mb-32">
-                    <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <h1 className="text-6xl md:text-8xl font-black font-serif text-[#1e293b] leading-[0.95] tracking-tight mb-8">
-                            Unleash Your <br />
-                            <span className="text-[#003399] italic border-b-8 border-[#003399]/10 pb-2">Financial Flow_</span>
-                        </h1>
-                        <p className="max-w-2xl mx-auto text-lg text-gray-500 font-medium leading-relaxed italic">
-                            FinanceAI is your specialized partner for resource management. Synchronize accounts, analyze sectors, and scale your capital with cinematic precision.
-                        </p>
-                    </div>
+            {/* CTA */}
+            <Link
+                to="/login"
+                style={{
+                    padding: '8px 20px',
+                    background: '#f59e0b',
+                    color: '#fff',
+                    borderRadius: '999px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    textDecoration: 'none',
+                }}
+            >
+                Login / Sign Up
+            </Link>
+        </div>
+    </header>
+);
 
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-                        <Link to="/register" className="group px-10 py-5 bg-[#003399] text-white rounded-xl font-bold text-sm tracking-wider flex items-center gap-3 hover:bg-blue-800 transition-all shadow-2xl shadow-blue-900/20 active:scale-95">
-                            Start Tracking Now
-                            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                        </Link>
-                        <Link to="/login" className="px-10 py-5 bg-white border border-gray-100 rounded-xl font-bold text-sm tracking-wider text-[#1e293b] hover:bg-gray-50 transition-all flex items-center gap-2 shadow-sm">
-                            Secure Login
-                        </Link>
-                    </div>
+/* ─── Feature Card ────────────────────────────────────────────── */
+const FeatureCard = ({ title, desc, icon: Icon }) => (
+    <div
+        style={{
+            background: '#ffffff',
+            borderRadius: '18px',
+            padding: '28px',
+            boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+        }}
+    >
+        <div
+            style={{
+                width: '40px', height: '40px',
+                background: '#eef3fd',
+                borderRadius: '12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: '16px',
+            }}
+        >
+            <Icon size={18} color="#3b5bdb" />
+        </div>
+        <div style={{ fontWeight: '700', fontSize: '14px', color: '#111827', marginBottom: '8px' }}>{title}</div>
+        <div style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.7' }}>{desc}</div>
+    </div>
+);
+
+/* ─── Step Card ───────────────────────────────────────────────── */
+const StepCard = ({ number, title, desc }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '0 8px' }}>
+        <div
+            style={{
+                width: '48px', height: '48px',
+                background: '#1a3471',
+                borderRadius: '50%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontWeight: '700', fontSize: '13px',
+                marginBottom: '16px',
+                position: 'relative', zIndex: 1,
+                boxShadow: '0 4px 12px rgba(26,52,113,0.3)',
+            }}
+        >
+            {number}
+        </div>
+        <div style={{ fontWeight: '700', fontSize: '13px', color: '#111827', marginBottom: '8px' }}>{title}</div>
+        <div style={{ fontSize: '12px', color: '#9ca3af', lineHeight: '1.7' }}>{desc}</div>
+    </div>
+);
+
+/* ─── FAQ Item ────────────────────────────────────────────────── */
+const FAQItem = ({ question, answer }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <div style={{ borderBottom: '1px solid #f3f4f6' }}>
+            <button
+                onClick={() => setOpen(o => !o)}
+                style={{
+                    width: '100%', padding: '16px 0',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                }}
+            >
+                <span style={{ fontSize: '14px', fontWeight: '500', color: '#111827' }}>{question}</span>
+                {open
+                    ? <ChevronUp size={15} color="#3b82f6" />
+                    : <ChevronDown size={15} color="#9ca3af" />
+                }
+            </button>
+            {open && (
+                <div style={{ paddingBottom: '16px' }}>
+                    <p style={{ fontSize: '13px', color: '#9ca3af', lineHeight: '1.7', margin: 0 }}>{answer}</p>
                 </div>
-
-                {/* Perspective View (Mock Data Area) */}
-                <div className="max-w-6xl mx-auto relative animate-in fade-in zoom-in duration-1000 delay-500">
-                    <div className="relative rounded-[2.5rem] overflow-hidden shadow-[0_60px_100px_-20px_rgba(0,0,0,0.15)] border border-white/50 bg-white p-4">
-                        <div className="bg-gray-50 rounded-[2rem] aspect-video flex items-center justify-center group overflow-hidden border border-gray-100 italic">
-                           <div className="flex flex-col items-center gap-4 text-gray-300 group-hover:scale-110 transition-transform duration-700">
-                               <BarChart3 size={80} strokeWidth={1} />
-                               <span className="text-[10px] font-black uppercase tracking-[0.5em]">Network Visualization Active</span>
-                           </div>
-                        </div>
-                    </div>
-                    {/* Decorative Blurs */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[#003399]/5 rounded-full blur-[140px] -z-10"></div>
-                </div>
-            </main>
-
-            {/* Feature Synthesis */}
-            <section className="py-32 px-6 bg-white/50">
-                <div className="max-w-6xl mx-auto">
-                    <div className="mb-24 text-center space-y-4">
-                        <h2 className="text-4xl md:text-5xl font-black font-serif text-[#1e293b] tracking-tight italic uppercase">Tools for Every User_</h2>
-                        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-[0.4em]">Integrated Financial Infrastructure</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        {features.map((f, i) => (
-                            <div key={i} className="bg-white p-12 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-2xl hover:shadow-gray-200/50 transition-all group flex flex-col items-center text-center">
-                                <div className="w-16 h-16 bg-blue-50/50 rounded-2xl flex items-center justify-center text-[#003399] mb-10 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
-                                    <f.icon size={28} />
-                                </div>
-                                <h3 className="text-xl font-bold text-[#1e293b] mb-4 font-serif italic">{f.title}</h3>
-                                <p className="text-sm text-gray-400 leading-relaxed font-bold opacity-80 uppercase tracking-tight">{f.desc}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Footer Global */}
-            <footer className="py-20 border-t border-gray-100 px-6 bg-[#FAF9F6]">
-                <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10">
-                    <div className="space-y-4 text-center md:text-left">
-                        <span className="text-xl font-black font-serif italic tracking-tighter text-[#1e293b]">FinanceAI</span>
-                        <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest leading-relaxed">Scaling Individual Capital Through Intelligence</p>
-                    </div>
-                    
-                    <div className="flex gap-10 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                        <a href="#" className="hover:text-[#003399] transition-colors">Protocols</a>
-                        <a href="#" className="hover:text-[#003399] transition-colors">Manifesto</a>
-                        <a href="#" className="hover:text-[#003399] transition-colors">Encrypted Support</a>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 bg-white px-6 py-3 rounded-full border border-gray-100 shadow-sm">
-                        <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Architected By</span>
-                        <span className="text-[11px] font-black text-[#003399] uppercase tracking-widest italic outline-none">Rohit</span>
-                    </div>
-                </div>
-            </footer>
+            )}
         </div>
     );
 };
 
-export default Home;
+/* ─── Main Component ──────────────────────────────────────────── */
+const Home = () => {
+    const features = [
+        { icon: LayoutGrid, title: 'Expense Tracking', desc: 'Log and categorize your expenses effortlessly. Track every transaction with detailed records and smart categorization.' },
+        { icon: PieChart,   title: 'Budget Management', desc: "Set budgets for different categories and monitor your spending. Get alerts when you're approaching your limits." },
+        { icon: Globe,       title: 'AI-Powered Insights', desc: 'Get intelligent recommendations and predictions based on your spending patterns. Let AI optimize your finances.' },
+        { icon: FileText,    title: 'Financial Reports', desc: 'Generate comprehensive reports with charts and analytics. Visualize your financial health at a glance.' },
+        { icon: ShieldCheck, title: 'Secure Authentication', desc: 'Your data is protected with industry-standard security. JWT authentication keeps your financial data safe.' },
+        { icon: Bell,        title: 'Smart Notifications', desc: 'Receive timely alerts about unusual spending, bill reminders, and budget updates to stay on track.' },
+    ];
+
+    const steps = [
+        { number: '01', title: 'Connect Your Accounts', desc: 'Sign up and securely link your financial accounts or start adding expenses manually.' },
+        { number: '02', title: 'Track & Categorize', desc: 'The system automatically categorizes your expenses. Review and adjust as needed.' },
+        { number: '03', title: 'Get AI Insights', desc: 'Receive personalized recommendations and forecasts to optimize your spending.' },
+        { number: '04', title: 'Achieve Your Goals', desc: 'Set financial goals, track progress, and watch your savings grow over time.' },
+    ];
+
+    const faqs = [
+        { question: 'Is ExpenseAI free to use?', answer: 'Yes, ExpenseAI offers a free plan with core features. Premium plans unlock advanced AI insights.' },
+        { question: 'How secure is my financial data?', answer: 'We use bank-grade AES-256 encryption. Your credentials are never stored in plain text.' },
+        { question: 'When do I receive budget alerts?', answer: 'Alerts trigger at 80%, 90%, and 100% of your set monthly budget limit.' },
+        { question: 'Can I manage multiple bank accounts?', answer: 'Yes, you can add unlimited accounts including Savings, Checking, and Credit Cards.' },
+        { question: 'Is my data encrypted?', answer: 'All data is encrypted with AES-256. Your personal and financial data is fully protected at rest and in transit.' },
+    ];
+
+    const inner = { maxWidth: '1100px', margin: '0 auto', padding: '0 32px' };
+
+    return (
+        <div style={{ width: '100%', minHeight: '100vh', fontFamily: "'Inter', sans-serif", background: '#ffffff' }}>
+
+            {/* Navbar */}
+            <Navbar />
+
+            {/* ── Hero ── */}
+            <section style={{ background: 'linear-gradient(180deg,#dce8f9 0%,#e8f0fb 100%)', width: '100%' }}>
+                <div style={{ ...inner, textAlign: 'center', padding: '80px 32px 96px' }}>
+                    <h1
+                        style={{
+                            fontFamily: 'Georgia, "Times New Roman", serif',
+                            fontWeight: '700',
+                            fontSize: 'clamp(2rem, 4vw, 3rem)',
+                            color: '#0c1f5e',
+                            lineHeight: '1.25',
+                            marginBottom: '20px',
+                        }}
+                    >
+                        Take Control of Your{' '}
+                        <span style={{ color: '#1d4ed8' }}>Financial<br />Future</span>
+                    </h1>
+                    <p style={{ fontSize: '14px', color: '#6b7280', lineHeight: '1.8', marginBottom: '32px', maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+                        AI Expense Management System helps you track expenses, manage budgets, and gain intelligent insights into your spending patterns. Make smarter financial decisions with ease.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <Link
+                            to="/register"
+                            style={{
+                                padding: '10px 22px',
+                                background: '#0c1f5e',
+                                color: '#fff',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                            }}
+                        >
+                            Start Tracking Now <ArrowRight size={13} />
+                        </Link>
+                        <a
+                            href="#how-it-works"
+                            style={{
+                                padding: '10px 22px',
+                                background: '#ffffff',
+                                color: '#374151',
+                                borderRadius: '8px',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                textDecoration: 'none',
+                                border: '1px solid #e5e7eb',
+                            }}
+                        >
+                            Learn More
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Features ── */}
+            <section id="features" style={{ background: '#eef4fc', width: '100%' }}>
+                <div style={{ ...inner, padding: '72px 32px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+                        <h2 style={{ fontFamily: 'Georgia, serif', fontWeight: '700', fontSize: 'clamp(1.5rem,3vw,2rem)', color: '#111827', marginBottom: '8px' }}>
+                            Features for Every User
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#9ca3af' }}>Everything you need to manage your finances effectively.</p>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                        {features.map((f, i) => <FeatureCard key={i} {...f} />)}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── How It Works ── */}
+            <section id="how-it-works" style={{ background: '#e5edf9', width: '100%' }}>
+                <div style={{ ...inner, padding: '72px 32px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+                        <h2 style={{ fontFamily: 'Georgia, serif', fontWeight: '700', fontSize: 'clamp(1.5rem,3vw,2rem)', color: '#111827', marginBottom: '8px' }}>
+                            How It Works
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#9ca3af' }}>Get started in minutes and take control of your finances.</p>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                        {/* Connector line */}
+                        <div
+                            style={{
+                                position: 'absolute', top: '24px',
+                                left: '12.5%', right: '12.5%',
+                                height: '1px', background: '#b3c8e8', zIndex: 0,
+                            }}
+                        />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px', position: 'relative', zIndex: 1 }}>
+                            {steps.map((s, i) => <StepCard key={i} {...s} />)}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── CTA ── */}
+            <section style={{ background: '#1a3471', width: '100%' }}>
+                <div style={{ ...inner, padding: '64px 32px', textAlign: 'center' }}>
+                    <h2 style={{ fontWeight: '700', fontSize: 'clamp(1.4rem,3vw,1.9rem)', color: '#ffffff', marginBottom: '12px' }}>
+                        Ready to Transform Your Finances?
+                    </h2>
+                    <p style={{ fontSize: '13px', color: '#93c5fd', marginBottom: '28px' }}>
+                        Start managing your expenses with AI-powered insights today.
+                    </p>
+                    <Link
+                        to="/register"
+                        style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '10px 24px',
+                            background: '#ffffff',
+                            color: '#1a3471',
+                            borderRadius: '8px',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            textDecoration: 'none',
+                        }}
+                    >
+                        Get Started <ArrowRight size={13} />
+                    </Link>
+                </div>
+            </section>
+
+            {/* ── FAQ ── */}
+            <section style={{ background: '#ffffff', width: '100%' }}>
+                <div style={{ maxWidth: '680px', margin: '0 auto', padding: '72px 32px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                        <h2 style={{ fontFamily: 'Georgia, serif', fontWeight: '700', fontSize: 'clamp(1.4rem,3vw,1.8rem)', color: '#111827', marginBottom: '8px' }}>
+                            Frequently Asked Questions
+                        </h2>
+                        <p style={{ fontSize: '13px', color: '#9ca3af' }}>Everything you want to know about ExpenseAI.</p>
+                    </div>
+                    <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #f3f4f6', padding: '0 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                        {faqs.map((faq, i) => <FAQItem key={i} {...faq} />)}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Footer ── */}
+            <footer style={{ background: '#ffffff', borderTop: '1px solid #f3f4f6', width: '100%' }}>
+                <div style={{ ...inner, padding: '24px 32px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '28px', height: '28px', background: '#1a3471', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <LayoutGrid size={12} color="#fff" />
+                            </div>
+                            <span style={{ fontWeight: '700', fontSize: '13px', color: '#111827' }}>ExpenseAI</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '20px' }}>
+                            <a href="#features" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>Features</a>
+                            <a href="#how-it-works" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>How It Works</a>
+                            <Link to="/login" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>Login</Link>
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>© 2026 AI Expense Management System.</p>
+                    </div>
+                    <div style={{ textAlign: 'center', marginTop: '16px' }}>
+                        <span style={{ fontSize: '12px', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: '999px', padding: '4px 14px', display: 'inline-block' }}>
+                            Created by <span style={{ color: '#3b5bdb', fontWeight: '600' }}>Rohit</span>
+                        </span>
+                    </div>
+                </div>
+            </footer>
+
+        </div>
+    );
+};
+
+export default Home;
