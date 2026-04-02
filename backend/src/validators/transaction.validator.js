@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  PaymentMethodEnum,
   RecurringIntervalEnum,
   TransactionTypeEnum,
 } from "../models/transaction.model.js";
@@ -24,12 +23,7 @@ export const baseTransactionSchema = z.object({
 
   category: z.string().min(1, "Category is required"),
 
-  date: z
-    .union([
-      z.string().datetime({ message: "Invalid date string" }),
-      z.date(),
-    ])
-    .transform((val) => new Date(val)),
+  date: z.coerce.date(),
 
   isRecurring: z.boolean().default(false),
 
@@ -46,16 +40,9 @@ export const baseTransactionSchema = z.object({
   receiptUrl: z.string().optional(),
   merchant: z.string().optional(),
 
-  paymentMethod: z
-    .enum([
-      PaymentMethodEnum.CARD,
-      PaymentMethodEnum.BANK_TRANSFER,
-      PaymentMethodEnum.MOBILE_PAYMENT,
-      PaymentMethodEnum.AUTO_DEBIT,
-      PaymentMethodEnum.CASH,
-      PaymentMethodEnum.OTHER,
-    ])
-    .default(PaymentMethodEnum.CASH),
+  // Accepts any string for paymentMethod so AI-extracted values
+  // like "Credit Card", "UPI", "Debit Card", "Online" pass validation
+  paymentMethod: z.string().optional().default("Cash"),
 });
 
 export const bulkDeleteTransactionSchema = z.object({

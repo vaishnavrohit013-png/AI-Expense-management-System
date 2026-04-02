@@ -22,14 +22,17 @@ import ForgotPassword from "./pages/forgot-password.jsx"
 
 import ProtectedRoute from "./components/ProtectedRoute.jsx"
 
+import PublicRoute from "./components/PublicRoute.jsx"
+
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-
-      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route element={<PublicRoute />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+      </Route>
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>

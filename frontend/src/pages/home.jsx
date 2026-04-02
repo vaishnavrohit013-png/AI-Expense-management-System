@@ -11,9 +11,10 @@ import {
     Bell,
     ArrowRight
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 /* ─── Navbar ─────────────────────────────────────────────────── */
-const Navbar = () => (
+const Navbar = ({ user }) => (
     <header style={{ background: '#ffffff', borderBottom: '1px solid #f0f0f0' }}>
         <div
             style={{
@@ -54,18 +55,22 @@ const Navbar = () => (
 
             {/* CTA */}
             <Link
-                to="/login"
+                to={user ? "/dashboard" : "/login"}
                 style={{
-                    padding: '8px 20px',
-                    background: '#f59e0b',
+                    padding: '8px 24px',
+                    background: '#2563eb',
                     color: '#fff',
                     borderRadius: '999px',
                     fontSize: '13px',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     textDecoration: 'none',
+                    boxShadow: '0 4px 10px rgba(37, 99, 235, 0.2)',
+                    transition: 'all 0.2s',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
                 }}
             >
-                Login / Sign Up
+                {user ? "Dashboard" : "Login / Get Started"}
             </Link>
         </div>
     </header>
@@ -149,6 +154,7 @@ const FAQItem = ({ question, answer }) => {
 
 /* ─── Main Component ──────────────────────────────────────────── */
 const Home = () => {
+    const { user } = useAuth();
     const features = [
         { icon: LayoutGrid, title: 'Expense Tracking', desc: 'Log and categorize your expenses effortlessly. Track every transaction with detailed records and smart categorization.' },
         { icon: PieChart,   title: 'Budget Management', desc: "Set budgets for different categories and monitor your spending. Get alerts when you're approaching your limits." },
@@ -179,7 +185,7 @@ const Home = () => {
         <div style={{ width: '100%', minHeight: '100vh', fontFamily: "'Inter', sans-serif", background: '#ffffff' }}>
 
             {/* Navbar */}
-            <Navbar />
+            <Navbar user={user} />
 
             {/* ── Hero ── */}
             <section style={{ background: 'linear-gradient(180deg,#dce8f9 0%,#e8f0fb 100%)', width: '100%' }}>
@@ -202,37 +208,44 @@ const Home = () => {
                     </p>
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <Link
-                            to="/register"
+                            to={user ? "/dashboard" : "/register"}
                             style={{
-                                padding: '10px 22px',
-                                background: '#0c1f5e',
+                                padding: '12px 28px',
+                                background: '#1e3a8a',
                                 color: '#fff',
-                                borderRadius: '8px',
+                                borderRadius: '12px',
                                 fontSize: '13px',
-                                fontWeight: '600',
+                                fontWeight: '700',
                                 textDecoration: 'none',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
+                                gap: '8px',
+                                transition: 'all 0.2s',
+                                boxShadow: '0 4px 12px rgba(30, 58, 138, 0.25)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
                             }}
                         >
-                            Start Tracking Now <ArrowRight size={13} />
+                            {user ? "Back to Dashboard" : "Get Started Now"} <ArrowRight size={14} />
                         </Link>
-                        <a
-                            href="#how-it-works"
-                            style={{
-                                padding: '10px 22px',
-                                background: '#ffffff',
-                                color: '#374151',
-                                borderRadius: '8px',
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                textDecoration: 'none',
-                                border: '1px solid #e5e7eb',
-                            }}
-                        >
-                            Learn More
-                        </a>
+                        {!user && (
+                            <Link
+                                to="/login"
+                                style={{
+                                    padding: '12px 28px',
+                                    background: '#ffffff',
+                                    color: '#374151',
+                                    borderRadius: '12px',
+                                    fontSize: '13px',
+                                    fontWeight: '700',
+                                    textDecoration: 'none',
+                                    border: '1.5px solid #e5e7eb',
+                                    transition: 'all 0.2s',
+                                }}
+                            >
+                                Existing Member?
+                            </Link>
+                        )}
                     </div>
                 </div>
             </section>
@@ -287,7 +300,7 @@ const Home = () => {
                         Start managing your expenses with AI-powered insights today.
                     </p>
                     <Link
-                        to="/register"
+                        to={user ? "/dashboard" : "/register"}
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: '6px',
                             padding: '10px 24px',
@@ -299,7 +312,7 @@ const Home = () => {
                             textDecoration: 'none',
                         }}
                     >
-                        Get Started <ArrowRight size={13} />
+                        {user ? "View Dashboard" : "Get Started"} <ArrowRight size={13} />
                     </Link>
                 </div>
             </section>
@@ -332,14 +345,9 @@ const Home = () => {
                         <div style={{ display: 'flex', gap: '20px' }}>
                             <a href="#features" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>Features</a>
                             <a href="#how-it-works" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>How It Works</a>
-                            <Link to="/login" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>Login</Link>
+                            <Link to={user ? "/dashboard" : "/login"} style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>{user ? 'Dashboard' : 'Login'}</Link>
                         </div>
                         <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>© 2026 AI Expense Management System.</p>
-                    </div>
-                    <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                        <span style={{ fontSize: '12px', color: '#9ca3af', border: '1px solid #e5e7eb', borderRadius: '999px', padding: '4px 14px', display: 'inline-block' }}>
-                            Created by <span style={{ color: '#3b5bdb', fontWeight: '600' }}>Rohit</span>
-                        </span>
                     </div>
                 </div>
             </footer>

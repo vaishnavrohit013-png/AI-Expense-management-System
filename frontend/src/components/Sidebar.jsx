@@ -9,6 +9,7 @@ import {
     Settings,
     User,
     LogOut,
+    MessageSquare
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -35,9 +36,11 @@ const Sidebar = () => {
     const handleLogout = async () => {
         try {
             await logout();
-            navigate('/login');
+            navigate('/', { replace: true });
         } catch (error) {
-            console.error('Logout failed:', error);
+            console.error('Logout error:', error);
+            // Default fallback if session is already gone
+            navigate('/');
         }
     };
 
@@ -58,6 +61,7 @@ const Sidebar = () => {
                 <SidebarLink to="/receipts" icon={Receipt} label="Receipts" />
                 <SidebarLink to="/analytics" icon={BarChart3} label="Analytics" />
                 <SidebarLink to="/profile" icon={User} label="Profile" />
+                <SidebarLink to="/chat" icon={MessageSquare} label="AI Chatbot" />
             </nav>
 
             {/* Profile Section */}

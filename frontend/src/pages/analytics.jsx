@@ -15,7 +15,7 @@ import {
     RadialBarChart, RadialBar, PolarAngleAxis
 } from 'recharts';
 import Layout from '../components/Layout';
-import { analyticsAPI, aiAPI } from '../services/api';
+import { analyticsAPI, aiAPI, transactionAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const Analytics = () => {
@@ -27,12 +27,15 @@ const Analytics = () => {
     useEffect(() => {
         const fetchAnalytics = async () => {
             try {
-                const [summaryRes, insightsRes] = await Promise.all([
+                const [summaryRes, transactionsRes] = await Promise.all([
                     analyticsAPI.getSummary({ preset: 'ALL_TIME' }),
-                    aiAPI.getInsights({ transactions: [] }) // Pass real data if available
+                    transactionAPI.getAll({ pageSize: 50 })
                 ]);
                 
+                const txs = transactionsRes.data.transactions || transactionsRes.data.data || [];
                 setSummary(summaryRes.data.data);
+                
+                const insightsRes = await aiAPI.getInsights(txs);
                 if (insightsRes.data) {
                     setAiResults({
                         score: insightsRes.data.score || 85,

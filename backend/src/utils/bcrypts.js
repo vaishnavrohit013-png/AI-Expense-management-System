@@ -1,20 +1,19 @@
 import bcrypt from "bcryptjs";
 
-export const hashValue = (value, saltRounds = 10) => {
-  return new Promise((resolve, reject) => {
-    bcrypt.hash(value, saltRounds, (err, hash) => {
-      if (err) reject(err);
-      resolve(hash);
-    });
-  });
+export const hashValue = async (value, saltRounds = 10) => {
+  try {
+    return await bcrypt.hash(value, saltRounds);
+  } catch (error) {
+    throw error;
+  }
 };
 
-export const compareValue = (value, hashedValue) => {
-  return new Promise((resolve, reject) => {
-    bcrypt.compare(value, hashedValue, (err, result) => {
-      if (err) reject(err);
-      resolve(result);
-    });
-  });
+export const compareValue = async (value, hashedValue) => {
+  try {
+    if (!value || !hashedValue) return false;
+    return await bcrypt.compare(value, hashedValue);
+  } catch (error) {
+    return false;
+  }
 };
                                                                          

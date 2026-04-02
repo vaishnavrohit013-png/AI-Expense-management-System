@@ -8,8 +8,11 @@ import {
   CheckCircle2,
   ArrowDown,
   ArrowUp,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Mic,
+  MicOff
 } from 'lucide-react';
+import { aiAPI } from '../services/api';
 import Layout from '../components/Layout';
 
 const AddTransaction = () => {
@@ -27,8 +30,12 @@ const AddTransaction = () => {
     description: '',
     merchant: ''
   });
+  
+  const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [transcript, setTranscript] = useState('');
 
-  const categories = ['Food', 'Income', 'Utilities', 'Transport', 'Entertainment', 'Health', 'Shopping', 'Other'];
+  const categories = ['Food', 'Travel', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Education', 'Other'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,9 +95,9 @@ const AddTransaction = () => {
         title: formData.description,
         amount: parseFloat(formData.amount.toString().replace(/[^\d.-]/g, ''))
       });
-      setSuccess("Transaction added successfully!");
+      setSuccess("Transaction added successfully! Returning to dashboard...");
       setTimeout(() => {
-        navigate('/transactions');
+        navigate('/dashboard');
       }, 1500);
     } catch (err) {
       console.error("Submission error:", err);
@@ -98,6 +105,74 @@ const AddTransaction = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleVoiceButtonClick = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      setError("Speech recognition is not supported in your browser. Please try Chrome.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setListening(true);
+      setError(null);
+      setSuccess(null);
+      setTranscript('');
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setError(`Speech error: ${event.error}`);
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.onresult = async (event) => {
+      const text = event.results[0][0].transcript;
+      if (!text) {
+        setError("I couldn't hear anything. Please try again.");
+        return;
+      }
+      
+      setTranscript(text);
+      setListening(false);
+      
+      // Send transcript to backend
+      setTranscribing(true);
+      try {
+        const response = await aiAPI.voiceExpense(text);
+        if (response.data.success) {
+          const { title, amount, category, date } = response.data.data;
+          
+          setFormData(prev => ({
+            ...prev,
+            amount: amount?.toString() || '',
+            category: category || prev.category,
+            description: title || prev.description,
+            date: date || prev.date
+          }));
+          
+          setSuccess("Voice expense details extracted! Review and Save.");
+        }
+      } catch (err) {
+        console.error("Voice processing error:", err);
+        setError("Failed to extract details from voice. Please enter manually.");
+      } finally {
+        setTranscribing(false);
+      }
+    };
+
+    recognition.start();
   };
 
   return (
@@ -144,6 +219,30 @@ const AddTransaction = () => {
                 {scanning ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
                 {scanning ? 'Scanning...' : 'Scan Receipt with AI'}
               </button>
+            </div>
+
+            {/* Voice Entry Button */}
+            <div className="space-y-3">
+              <button 
+                type="button"
+                onClick={handleVoiceButtonClick}
+                disabled={listening || transcribing}
+                className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all ${
+                    listening 
+                    ? 'bg-red-500 text-white animate-pulse' 
+                    : (transcribing ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 shadow-sm')
+                }`}
+              >
+                {transcribing ? <Loader2 className="animate-spin" size={20} /> : (listening ? <MicOff size={20} /> : <Mic size={20} />)}
+                {listening ? 'Listening... Speak now' : (transcribing ? 'Processing Voice...' : 'Voice Expense Entry')}
+              </button>
+              
+              {transcript && (
+                <div className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
+                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Voice Transcript</p>
+                    <p className="text-xs italic text-gray-600">"{transcript}"</p>
+                </div>
+              )}
             </div>
 
             {/* Type Toggle */}

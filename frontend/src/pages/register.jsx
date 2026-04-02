@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { authAPI } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const Register = () => {
     const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -11,6 +12,8 @@ const Register = () => {
     const [error, setError]               = useState('');
     const [success, setSuccess]           = useState('');
     const navigate = useNavigate();
+
+    const { login } = useAuth();
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -25,8 +28,10 @@ const Register = () => {
         setLoading(true);
         try {
             const res = await authAPI.register({ name: form.name, email: form.email, password: form.password });
-            setSuccess(`Account created successfully! Welcome, ${form.name.split(' ')[0]}! Redirecting to login…`);
-            setTimeout(() => navigate('/login'), 2000);
+            const { accessToken, user } = res.data.data || res.data;
+            login(accessToken, user);
+            setSuccess(`Account created successfully!`);
+            setTimeout(() => navigate('/dashboard'), 1200);
         } catch (err) {
             console.error('Registration failed:', err);
             setError(err.response?.data?.message || 'Registration failed. Please try again.');

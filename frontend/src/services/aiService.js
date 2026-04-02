@@ -3,11 +3,15 @@ import { aiAPI } from './api';
 export const aiService = {
     async chatWithAI(userMessage, chatHistory = []) {
         try {
-            const response = await aiAPI.chat(userMessage, chatHistory);
+            const response = await aiAPI.chat({ 
+                message: userMessage, 
+                history: chatHistory 
+            });
             return response.data.text || "Thinking mode active, but the matrix returned no data.";
         } catch (error) {
             console.error("AI Insight Error:", error);
-            return "Neural link disrupted. Ensure your backend has a valid GEMINI_API_KEY.";
+            const errorMessage = error.response?.data?.message || "Neural link disrupted. Ensure your backend has a valid GEMINI_API_KEY.";
+            return errorMessage;
         }
     },
 

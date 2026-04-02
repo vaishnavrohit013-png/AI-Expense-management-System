@@ -21,11 +21,18 @@ import {
   updateTransactionService,
 } from "../services/transaction.service.js";
 
+import { checkAndSendBudgetAlerts } from "../services/budget-alert.service.js";
+
 export const createTransactionController = asyncHandler(async (req, res) => {
   const body = createTransactionSchema.parse(req.body);
   const userId = req.user?._id;
 
   const transaction = await createTransactionService(body, userId);
+
+  // Fire-and-forget budget alert check (never delays the response)
+  checkAndSendBudgetAlerts(userId, transaction).catch((err) =>
+    console.error("[BudgetAlert] Background check failed:", err.message)
+  );
 
   return res.status(HTTPSTATUS.CREATED).json({
     message: "Transaction created successfully",
@@ -36,11 +43,17 @@ export const createTransactionController = asyncHandler(async (req, res) => {
 export const getAllTransactionController = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
 
-  const filters = {};
-  if (req.query.keyword) filters.keyword = req.query.keyword;
-  if (req.query.type) filters.type = req.query.type;
-  if (req.query.recurringStatus)
-    filters.recurringStatus = req.query.recurringStatus;
+  const filters = {
+    keyword: req.query.keyword,
+    type: req.query.type,
+    category: req.query.category,
+    recurringStatus: req.query.recurringStatus,
+    startDate: req.query.startDate,
+    endDate: req.query.endDate,
+    minAmount: req.query.minAmount,
+    maxAmount: req.query.maxAmount,
+    sort: req.query.sort,
+  };
 
   const pagination = {
     pageSize: parseInt(req.query.pageSize) || 20,

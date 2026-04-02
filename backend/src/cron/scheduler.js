@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { processRecurringTransactions } from "./jobs/transaction.job.js";
 import { processReportJob } from "./jobs/report.job.js";
+import { processDailyBudgetAlerts } from "./jobs/budget-alert.job.js";
 
 const scheduleJob = (name, time, job) => {
   console.log(`Scheduling ${name} at ${time}`);
@@ -24,11 +25,15 @@ const scheduleJob = (name, time, job) => {
 
 export const startJobs = () => {
   return [
-    // Runs every day at 5 AM
+    // Runs every day at 5 AM — recurring transactions
     scheduleJob("Transactions", "0 5 * * *", processRecurringTransactions),
+
+    // Runs every day at 6 AM — budget alert safety net
+    scheduleJob("Budget Alerts", "0 6 * * *", processDailyBudgetAlerts),
 
     // Runs 2:30 AM on first day of every month
     scheduleJob("Weekly Reports", "30 2 * * 1", () => processReportJob("WEEKLY")),
     scheduleJob("Monthly Reports", "30 2 1 * *", () => processReportJob("MONTHLY")),
   ];
 };
+

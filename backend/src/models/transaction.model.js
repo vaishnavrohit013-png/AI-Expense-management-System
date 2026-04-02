@@ -112,8 +112,9 @@ const transactionSchema = new Schema(
 
     paymentMethod: {
       type: String,
-      enum: Object.values(PaymentMethodEnum),
-      default: PaymentMethodEnum.CASH,
+      // Accepts free-form values like "Cash", "Credit Card", "UPI", "Debit Card", etc.
+      // AI receipt scanner returns human-readable strings, strict enum would reject them.
+      default: "Cash",
     },
   },
   {

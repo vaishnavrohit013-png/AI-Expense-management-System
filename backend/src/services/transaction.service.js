@@ -47,7 +47,7 @@ export const getAllTransactionService = async (
   filters,
   pagination
 ) => {
-  const { keyword, type, recurringStatus } = filters;
+  const { keyword, type, category, recurringStatus, startDate, endDate, minAmount, maxAmount, sort } = filters;
 
   const filterConditions = { userId };
 
@@ -55,6 +55,8 @@ export const getAllTransactionService = async (
     filterConditions.$or = [
       { title: { $regex: keyword, $options: "i" } },
       { category: { $regex: keyword, $options: "i" } },
+      { description: { $regex: keyword, $options: "i" } },
+      { merchant: { $regex: keyword, $options: "i" } },
     ];
   }
 
@@ -62,19 +64,47 @@ export const getAllTransactionService = async (
     filterConditions.type = type;
   }
 
+  if (category) {
+    filterConditions.category = category;
+  }
+
   if (recurringStatus) {
     filterConditions.isRecurring =
       recurringStatus === "RECURRING" ? true : false;
   }
 
+  if (startDate || endDate) {
+    filterConditions.date = {};
+    if (startDate) filterConditions.date.$gte = new Date(startDate);
+    if (endDate) filterConditions.date.$lte = new Date(endDate);
+  }
+
+  if (minAmount || maxAmount) {
+    filterConditions.amount = {};
+    if (minAmount) filterConditions.amount.$gte = convertToPaise(parseFloat(minAmount));
+    if (maxAmount) filterConditions.amount.$lte = convertToPaise(parseFloat(maxAmount));
+  }
+
   const { pageSize, pageNumber } = pagination;
   const skip = (pageNumber - 1) * pageSize;
+
+  let sortCondition = { date: -1 }; // default
+
+  if (sort === "oldest") {
+    sortCondition = { date: 1 };
+  } else if (sort === "highest") {
+    sortCondition = { amount: -1 };
+  } else if (sort === "lowest") {
+    sortCondition = { amount: 1 };
+  } else if (sort === "latest") {
+    sortCondition = { date: -1 };
+  }
 
   const [transactions, totalCount] = await Promise.all([
     TransactionModel.find(filterConditions)
       .skip(skip)
       .limit(pageSize)
-      .sort({ createdAt: -1 }),
+      .sort(sortCondition),
     TransactionModel.countDocuments(filterConditions),
   ]);
 

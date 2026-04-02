@@ -27,7 +27,7 @@ const Login = () => {
             const response = await authAPI.login(loginData.email, loginData.password);
             const { accessToken, user } = response.data.data;
             login(accessToken, user);
-            setSuccess(`Welcome back, ${user?.name?.split(' ')[0] || 'User'}! Redirecting to dashboard…`);
+            setSuccess(`You logged in successfully!`);
             setTimeout(() => navigate('/dashboard'), 1200);
         } catch (err) {
             console.error('Login failed:', err);

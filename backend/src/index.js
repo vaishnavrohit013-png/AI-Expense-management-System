@@ -14,7 +14,6 @@ import passport from "passport";
 import { Env } from "./config/env.config.js";
 import { HTTPSTATUS } from "./config/http.config.js";
 import { errorHandler } from "./middlewares/errorHandler.middleware.js";
-import { asyncHandler } from "./middlewares/asyncHandler.middleware.js";
 import connectDatabase from "./config/database.config.js";
 
 import authRoutes from "./routes/auth.route.js";
@@ -33,7 +32,16 @@ const app = express();
 
 /* -------------------- Middleware -------------------- */
 
-app.use(cors());
+app.use(
+  cors({
+    // In production set FRONTEND_ORIGIN to your Vercel frontend URL
+    // e.g. FRONTEND_ORIGIN=https://your-app.vercel.app
+    origin: Env.FRONTEND_ORIGIN
+      ? Env.FRONTEND_ORIGIN.split(",").map((o) => o.trim())
+      : true,
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(passport.initialize());
 
