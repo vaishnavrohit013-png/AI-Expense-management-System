@@ -1,21 +1,35 @@
 import { PaymentMethodEnum } from "../models/transaction.model.js";
 
 export const receiptPrompt = `
-You are a financial assistant that helps users analyze and extract transaction details from receipt image (base64 encoded)
+Analyze the provided receipt image and extract details into a valid JSON object.
 
-Analyze this receipt image and extract transaction details matching this exact JSON format:
-
+JSON FORMAT:
 {
-  "title": "string",
-  "amount": number,
-  "date": "YYYY-MM-DD",
-  "description": "string",
-  "category": "string",
-  "type": "EXPENSE",
-  "paymentMethod": "string"
+  "title": "",
+  "amount": 0,
+  "date": "",
+  "shopName": "",
+  "category": "",
+  "tax": 0,
+  "paymentMethod": "",
+  "notes": "",
+  "fullText": "Write ALL the raw text you see on the receipt here"
 }
 
-Payment methods: ${Object.values(PaymentMethodEnum).join(",")}
+RULES:
+1. Read the full receipt carefully.
+2. Identify the final total amount paid. Prefer values near words like: total, grand total, final total, payable, amount paid, net amount.
+3. shopName means store/shop/business name at top of receipt.
+4. category must be one of: Food, Travel, Shopping, Bills, Entertainment, Health, Education, Other.
+5. paymentMethod must be one of: Cash, UPI, Card, Net Banking, Wallet, Other.
+6. tax must be numeric only.
+7. date must be YYYY-MM-DD.
+8. notes can contain short extra info if useful.
+9. if a field is unclear, return best guess instead of empty where possible.
+10. return no explanation.
+11. return no markdown.
+12. return no code block.
+13. return only valid JSON.
 `.trim();
 
 export const reportInsightPrompt = ({

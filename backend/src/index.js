@@ -22,6 +22,9 @@ import transactionRoutes from "./routes/transaction.route.js";
 import reportRoutes from "./routes/report.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
 import aiRoutes from "./routes/ai.route.js";
+import receiptRoutes from "./routes/receipt.route.js";
+import calendarRoutes from "./routes/calendar.route.js";
+import budgetRoutes from "./routes/budget.route.js";
 
 import { passportAuthenticateJwt } from "./config/passport.config.js";
 import { initializeCrons } from "./cron/index.js";
@@ -53,6 +56,9 @@ app.use(`${Env.BASE_PATH}/transactions`, passportAuthenticateJwt, transactionRou
 app.use(`${Env.BASE_PATH}/reports`, passportAuthenticateJwt, reportRoutes);
 app.use(`${Env.BASE_PATH}/analytics`, passportAuthenticateJwt, analyticsRoutes);
 app.use(`${Env.BASE_PATH}/ai`, passportAuthenticateJwt, aiRoutes);
+app.use(`${Env.BASE_PATH}/receipts`, passportAuthenticateJwt, receiptRoutes);
+app.use(`${Env.BASE_PATH}/calendar`, passportAuthenticateJwt, calendarRoutes);
+app.use(`${Env.BASE_PATH}/budgets`, passportAuthenticateJwt, budgetRoutes);
 
 /* -------------------- Health Check -------------------- */
 

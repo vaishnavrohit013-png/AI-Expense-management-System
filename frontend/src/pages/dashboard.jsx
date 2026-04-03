@@ -1,28 +1,39 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   TrendingUp, TrendingDown, Wallet, Edit2, Mic, MicOff,
-  Sparkles, Shield, CheckCircle2, FileText, CalendarDays,
+  Zap, Shield, ShieldCheck, CheckCircle2, FileText,
   Loader2, ArrowRight, Plus, X, Trash2, Download,
   LightbulbIcon, LayoutDashboard, List, BarChart2,
   Settings, LogOut, AlertTriangle, ChevronDown
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
+  ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import Layout from '../components/Layout';
 import { transactionAPI, analyticsAPI, aiAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 /* ─── Constants ──────────────────────────────────────────────── */
-const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899'];
+const CATEGORY_COLORS = {
+  food: '#f59e0b', transport: '#3b82f6', shopping: '#ec4899', entertainment: '#8b5cf6',
+  bills: '#ef4444', health: '#10b981', education: '#06b6d4', rent: '#f43f5e',
+  salary: '#22c55e', freelance: '#84cc16', investment: '#0ea5e9', business: '#6366f1',
+  gift: '#f472b6', interest: '#fbbf24', other: '#94a3b8'
+};
+const COLORS = ['#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#ef4444', '#10b981', '#06b6d4', '#f43f5e', '#22c55e', '#84cc16'];
+const getCategoryColor = (name, index) => {
+  const normalized = String(name || '').toLowerCase().trim();
+  return CATEGORY_COLORS[normalized] || COLORS[index % COLORS.length];
+};
 const EXPENSE_CATS = ['Food', 'Transport', 'Shopping', 'Entertainment', 'Bills', 'Health', 'Education', 'Rent', 'Other'];
 const INCOME_CATS = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Other'];
 const FILTER_OPTIONS = [
-  { label: 'Daily', value: 'LAST_7_DAYS', chart: 'LAST_7_DAYS' },
-  { label: 'Weekly', value: 'THIS_WEEK', chart: 'LAST_4_WEEKS' },
-  { label: 'Monthly', value: 'THIS_MONTH', chart: 'LAST_6_MONTHS' },
-  { label: 'Yearly', value: 'THIS_YEAR', chart: 'LAST_12_MONTHS' },
+  { label: 'Daily', value: 'LAST_7_DAYS', chart: 'LAST_7_DAYS', slug: '7d' },
+  { label: 'Weekly', value: 'THIS_WEEK', chart: 'LAST_4_WEEKS', slug: '1m' },
+  { label: 'Monthly', value: 'THIS_MONTH', chart: 'LAST_6_MONTHS', slug: '6m' },
+  { label: 'Yearly', value: 'THIS_YEAR', chart: 'LAST_12_MONTHS', slug: '1y' },
 ];
 
 /* ─── Toast ───────────────────────────────────────────────────── */
@@ -48,7 +59,7 @@ const Toast = ({ toasts, remove }) => (
       >
         {t.type === 'success' && <CheckCircle2 size={16} />}
         {t.type === 'error' && <AlertTriangle size={16} />}
-        {t.type === 'info' && <Sparkles size={16} />}
+        {t.type === 'info' && <Zap size={16} />}
         {t.msg}
         <button onClick={() => remove(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, marginLeft: 'auto' }}>
           <X size={14} />
@@ -215,61 +226,80 @@ const TxModal = ({ open, onClose, onSave, initial }) => {
   );
 };
 
+/* ─── ERROR BOUNDARY ─── */
+class DashboardBoundary extends React.Component {
+    constructor(props) { super(props); this.state = { hasError: false, error: null }; }
+    static getDerivedStateFromError(error) { return { hasError: true, error }; }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{ padding: '40px', textAlign: 'center', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                    <AlertTriangle size={48} color="#ef4444" style={{ marginBottom: '16px' }} />
+                    <h1 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '8px' }}>Interface Error</h1>
+                    <p style={{ color: '#6b7280', fontSize: '14px', marginBottom: '24px' }}>{this.state.error?.message || 'Something went wrong.'}</p>
+                    <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', background: '#3b5bdb', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: '600', cursor: 'pointer' }}>Reload Dashboard</button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
 /* ─── AI Health Modal ───────────────────────────────────────── */
 const AIHealthModal = ({ open, onClose, score, suggestions, loading, error }) => {
   if (!open) return null;
   const scoreColor = score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
   
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998 }}>
-      <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', maxWidth: '500px', width: '90%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 25px rgba(0,0,0,0.15)', animation: 'slideIn 0.2s ease-out' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Sparkles size={20} color="#8b5cf6" /> Financial Health Report
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998, padding: '20px' }}>
+      <div style={{ background: '#fff', borderRadius: '24px', padding: '32px', maxWidth: '500px', width: '100%', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', animation: 'slideIn 0.2s ease-out' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b' }}>
+            Insights
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '24px' }}>
+          <button onClick={onClose} style={{ background: '#f8fafc', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '20px', width: '32px', height: '32px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             ×
           </button>
         </div>
 
         {loading ? (
              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                  <Loader2 size={32} className="animate-spin text-purple-500 mx-auto" />
-                  <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '12px' }}>Analyzing your financial footprint...</p>
+                  <Loader2 size={32} className="animate-spin text-blue-500 mx-auto" />
+                  <p style={{ fontSize: '14px', color: '#64748b', marginTop: '12px', fontWeight: '600' }}>Analyzing your data...</p>
              </div>
         ) : (
             <>
               {error ? (
-                  <div style={{ textAlign: 'center', padding: '20px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px' }}>
-                      <AlertTriangle size={28} className="mx-auto text-red-500 mb-2" color="#ef4444" />
-                      <p style={{ fontSize: '14px', color: '#b91c1c', fontWeight: '500', margin: 0 }}>{error}</p>
+                  <div style={{ textAlign: 'center', padding: '24px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '16px' }}>
+                      <AlertTriangle size={28} className="mx-auto text-red-500 mb-3" />
+                      <p style={{ fontSize: '14px', color: '#b91c1c', fontWeight: '600', margin: 0 }}>{error}</p>
                   </div>
               ) : (
                   <>
                       {score !== null && (
-                        <div style={{ textAlign: 'center', marginBottom: '24px', padding: '20px', background: '#f9fafb', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-                          <div style={{ fontSize: '48px', fontWeight: '800', color: scoreColor }}>{score}<span style={{fontSize:'20px', color:'#9ca3af'}}>/100</span></div>
-                          <p style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px', fontWeight: '500' }}>Overall Health Score</p>
+                        <div style={{ textAlign: 'center', marginBottom: '28px', padding: '24px', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' }}>
+                          <div style={{ fontSize: '56px', fontWeight: '900', color: scoreColor, letterSpacing: '-2px' }}>{score}<span style={{fontSize:'18px', color:'#94a3b8', letterSpacing: '0'}}> SCORE</span></div>
+                          <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Financial Health</p>
                         </div>
                       )}
 
                       {suggestions && suggestions.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#374151', marginBottom: '4px' }}>Recommendations</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#1e293b', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recommendations</h3>
                           {suggestions.map((s, i) => (
-                            <div key={i} style={{ padding: '14px', background: '#faf5ff', borderRadius: '10px', fontSize: '13px', color: '#4c1d95', border: '1px solid #e9d5ff', display: 'flex', gap: '10px' }}>
-                              <LightbulbIcon size={16} color="#9333ea" style={{flexShrink: 0, marginTop: '2px'}} />
-                              <span style={{lineHeight: 1.4, fontWeight: '500'}}>{s}</span>
+                            <div key={i} style={{ padding: '16px', background: '#fff', borderRadius: '16px', fontSize: '14px', color: '#334155', border: '1px solid #f1f5f9', fontWeight: '600', lineHeight: '1.5', display: 'flex', gap: '12px', alignItems: 'flex-start', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                              <div style={{ width: '6px', height: '6px', background: '#3b82f6', borderRadius: '50%', marginTop: '7px', flexShrink: 0 }} />
+                              {typeof s === 'string' ? s : JSON.stringify(s)}
                             </div>
                           ))}
                         </div>
                       ) : (
-                         <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280', fontSize: '14px' }}>
+                         <div style={{ textAlign: 'center', padding: '20px', color: '#64748b', fontSize: '14px', fontWeight: '600' }}>
                              No specific recommendations found.
                          </div>
                       )}
                   </>
-             )}
+              )}
             </>
         )}
       </div>
@@ -312,27 +342,20 @@ const StatCard = ({ label, value, sub, icon, color, bg }) => (
   </div>
 );
 
-/* ─── Export to CSV/Excel ─────────────────────────────────────── */
 const exportToExcel = (transactions) => {
-  const headers = ['Date', 'Title', 'Category', 'Type', 'Amount (₹)', 'Note'];
+  if (!transactions || transactions.length === 0) return;
+  const headers = ['Date', 'Title', 'Category', 'Type', 'Amount (₹)', 'Merchant', 'Payment Method', 'Description'];
   const rows = transactions.map(tx => [
     tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '',
-    tx.title || tx.category || '',
-    tx.category || '',
-    tx.type || '',
-    tx.amount || 0,
-    tx.note || '',
+    tx.title || '', tx.category || '', tx.type || '', tx.amount || 0, tx.merchant || '', tx.paymentMethod || '', tx.description || '',
   ]);
   const csvContent = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
+  a.download = `spendly_data.csv`;
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 };
 
 /* ─── Dashboard ───────────────────────────────────────────────── */
@@ -356,648 +379,213 @@ const Dashboard = () => {
   const [showHealthModal, setShowHealthModal] = useState(false);
   const [healthError, setHealthError] = useState(null);
 
-  const [listening, setListening] = useState(false);
-  const [voiceStatus, setVoiceStatus] = useState('');
-
   const [txModal, setTxModal] = useState(false);
   const [editTx, setEditTx] = useState(null);
   const [deleteTx, setDeleteTx] = useState(null);
 
-  // AI Features State
-  const [monthlySummary, setMonthlySummary] = useState(null);
-  const [budgetAlerts, setBudgetAlerts] = useState([]);
-  const [loadingAI, setLoadingAI] = useState({ summary: true, alerts: true });
+  const navigate = useNavigate();
 
-  /* ── Fetch AI Data ── */
-  const fetchAIData = useCallback(async () => {
-    setLoadingAI({ summary: true, alerts: true });
-    try {
-      const [summaryRes, alertsRes] = await Promise.all([
-        aiAPI.getMonthlySummary(),
-        aiAPI.getBudgetAlerts()
-      ]);
-      setMonthlySummary(summaryRes.data.data);
-      setBudgetAlerts(alertsRes.data.alerts);
-    } catch (err) {
-      console.error("AI Data Fetch Error:", err);
-    } finally {
-      setLoadingAI({ summary: false, alerts: false });
-    }
-  }, []);
-
-  /* ── Fetch AI Monthly Insights ── */
-  const [monthlyInsights, setMonthlyInsights] = useState(null);
-  const [loadingInsights, setLoadingInsights] = useState(false);
-
-  const generateMonthlyInsights = async () => {
-    setLoadingInsights(true);
-    try {
-      const res = await aiAPI.getMonthlyInsights();
-      setMonthlyInsights(res.data.insights || []);
-    } catch (err) {
-      toast('Failed to generate AI insights. Please try again.', 'error');
-      console.error('Insights Error:', err);
-    } finally {
-      setLoadingInsights(false);
-    }
-  };
-
-  /* ── Fetch core data ── */
   const fetchDashboard = useCallback(async (fi = filterIdx) => {
     setIsLoading(true);
-    fetchAIData(); // Trigger AI fetch
     try {
       const preset = FILTER_OPTIONS[fi].value;
-      const chartPreset = FILTER_OPTIONS[fi].chart;
-
       const [txRes, summaryRes, chartRes, pieRes] = await Promise.all([
         transactionAPI.getAll({ limit: 50 }),
         analyticsAPI.getSummary({ preset }),
-        analyticsAPI.getChart({ preset: chartPreset }),
+        analyticsAPI.getChart({ preset: FILTER_OPTIONS[fi].chart }),
         analyticsAPI.getExpenseBreakdown({ preset }),
       ]);
 
-      const txList = txRes.data.data || [];
-      setTransactions(txList);
+      const txList = txRes.data.transactions || txRes.data.data || [];
+      setTransactions(Array.isArray(txList) ? txList : []);
 
       const s = summaryRes.data.data || {};
-      setSummary({
-        totalIncome: s.totalIncome || 0,
-        totalExpenses: s.totalExpenses || 0,
-        availableBalance: s.availableBalance || 0,
-        savingsRate: s.savingsRate || 0,
-      });
+      setSummary({ totalIncome: s.totalIncome || 0, totalExpenses: s.totalExpenses || 0, availableBalance: s.availableBalance || 0, savingsRate: s.savingsRate || 0 });
       setSpentAmount(s.totalExpenses || 0);
       setBudgetLimit(user?.monthlyBudget || 50000);
 
-      const mapped = (chartRes.data.data?.chartData || []).map(item => ({
-        name: new Intl.DateTimeFormat('en-US', { month: 'short', day: fi === 0 ? 'numeric' : undefined })
-          .format(new Date(item.date)),
-        Income: item.income || 0,
-        Expenses: item.expense || 0,
-      }));
+      const mapped = (chartRes.data.data?.chartData || []).map(item => {
+        const d = new Date(item.date);
+        const name = isNaN(d.getTime()) ? '?' : new Intl.DateTimeFormat('en-US', { month: 'short', day: fi === 0 ? 'numeric' : undefined }).format(d);
+        return { name, Income: item.income || 0, Expenses: item.expense || 0 };
+      });
       setBarData(mapped);
 
       const cats = pieRes.data.data?.categories || {};
-      const pie = Object.entries(cats)
-        .map(([name, data]) => ({ name, value: data.amount || 0 }))
-        .filter(p => p.value > 0)
-        .sort((a, b) => b.value - a.value);
-      setPieData(pie);
-    } catch (err) {
-      console.error('Dashboard fetch error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filterIdx, user, fetchAIData]);
+      setPieData(Object.entries(cats).map(([name, d]) => ({ name, value: d.amount || 0 })).filter(p => p.value > 0).sort((a,b)=>b.value-a.value));
+    } catch (err) { console.error(err); }
+    finally { setIsLoading(false); }
+  }, [filterIdx, user]);
 
   useEffect(() => { fetchDashboard(filterIdx); }, [filterIdx]);
 
-  const handleFilter = (idx) => {
-    setFilterIdx(idx);
-  };
-
+  const handleFilter = (idx) => setFilterIdx(idx);
   const handleSaveTx = async (data, id) => {
     try {
-      if (id) {
-        await transactionAPI.update(id, data);
-        toast('Transaction updated successfully!', 'success');
-      } else {
-        await transactionAPI.create(data);
-        toast(`${data.type === 'INCOME' ? 'Income' : 'Expense'} added successfully!`, 'success');
+      const res = id ? await transactionAPI.update(id, data) : await transactionAPI.create(data);
+      console.log("🚀 [Transaction Save] Response:", res.data);
+      
+      setTxModal(false); 
+      setEditTx(null); 
+      fetchDashboard(filterIdx);
+      
+      const alert = res.data?.budgetAlert;
+      if (alert) {
+        const title = alert.threshold === 'exceeded' ? 'LIMIT EXCEEDED!' : `${alert.threshold}% REACHED!`;
+        toast(`⚠️ ${title} Check recorded for ${alert.category}. Please check your email for details.`, 'info');
       }
-      setTxModal(false);
-      setEditTx(null);
-      // Forced refresh of both Core stats and AI insights after data change
-      fetchDashboard(filterIdx, true); 
-    } catch (err) {
-      toast(err.response?.data?.message || 'Something went wrong.', 'error');
+    } catch (err) { 
+      console.error("❌ [Transaction Save] Error:", err);
+      toast('Something went wrong.', 'error'); 
     }
   };
-
   const handleDelete = async () => {
-    if (!deleteTx) return;
-    try {
-      await transactionAPI.delete(deleteTx._id);
-      toast('Transaction deleted.', 'success');
-      setDeleteTx(null);
-      // Refresh all dashboard metrics including AI after deletion
-      fetchDashboard(filterIdx, true); 
-    } catch {
-      toast('Failed to delete transaction.', 'error');
-    }
+    try { await transactionAPI.delete(deleteTx._id); setDeleteTx(null); fetchDashboard(filterIdx); }
+    catch { toast('Failed to delete transaction.', 'error'); }
   };
-
   const fetchHealthScore = async () => {
-    setShowHealthModal(true);
-    setLoadingHealth(true);
-    setHealthError(null);
+    setShowHealthModal(true); setLoadingHealth(true); setHealthError(null);
     try {
       const res = await aiAPI.getFinancialHealth();
-      const data = res.data?.data || res.data;
-      setHealthScore(data.score ?? data.healthScore ?? null);
-      
-      // The backend returns insights and suggestions arrays or a fallback string
-      let suggestionsList = [];
-      if (Array.isArray(data.suggestions)) suggestionsList.push(...data.suggestions);
-      if (Array.isArray(data.insights)) suggestionsList.push(...data.insights);
-      if (typeof data.recommendations === 'string') suggestionsList.push(data.recommendations);
-      
-      setHealthSuggestions(suggestionsList);
-    } catch (err) { 
-        toast('Could not load AI insights.', 'error'); 
-        setHealthError(err.response?.data?.message || 'Error communicating with AI network. Please try again.');
-    }
+      const d = res.data?.data || res.data;
+      setHealthScore(d.score || 75);
+      setHealthSuggestions(d.suggestions || d.insights || []);
+    } catch (err) { setHealthError('AI service is busy.'); }
     finally { setLoadingHealth(false); }
   };
 
-  const handleVoiceEntry = () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { setVoiceStatus('Speech recognition not supported.'); return; }
-    const rec = new SR();
-    rec.lang = 'en-IN';
-    setListening(true);
-    setVoiceStatus('Listening… speak now');
-    rec.start();
-    rec.onresult = async (e) => {
-      const t = e.results[0][0].transcript;
-      setVoiceStatus(`Heard: "${t}" — processing…`);
-      setListening(false);
-      try {
-        const r = await aiAPI.extractVoice(t);
-        const d = r.data?.data || r.data;
-        setVoiceStatus(`✅ ₹${d.amount || '?'} for ${d.category || 'unknown'}. Go to Add Transaction to confirm.`);
-      } catch { setVoiceStatus('Could not extract. Try again.'); }
-    };
-    rec.onerror = () => { setListening(false); setVoiceStatus('Mic error. Allow microphone access.'); };
-    rec.onend = () => setListening(false);
-  };
-
-  const budgetPct = budgetLimit > 0 ? Math.min((spentAmount / budgetLimit) * 100, 100) : 0;
   const isNewUser = !isLoading && transactions.length === 0;
-  const scoreColor = s => s >= 75 ? '#10b981' : s >= 50 ? '#f59e0b' : '#ef4444';
 
   return (
+    <DashboardBoundary>
     <Layout>
       <style>{`
         @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
-        input, select, textarea { font-family: 'Inter', sans-serif; }
-        input:focus, select:focus, textarea:focus { border-color: #3b5bdb !important; box-shadow: 0 0 0 3px rgba(59,91,219,0.08) !important; outline: none !important; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
       `}</style>
 
       <TxModal open={txModal} onClose={() => { setTxModal(false); setEditTx(null); }} onSave={handleSaveTx} initial={editTx} />
-      <ConfirmDialog open={!!deleteTx} title="Delete Transaction?" message="This action cannot be undone." onConfirm={handleDelete} onCancel={() => setDeleteTx(null)} />
+      <ConfirmDialog open={!!deleteTx} title="Delete?" message="This action cannot be undone." onConfirm={handleDelete} onCancel={() => setDeleteTx(null)} />
       <AIHealthModal open={showHealthModal} onClose={() => setShowHealthModal(false)} score={healthScore} suggestions={healthSuggestions} loading={loadingHealth} error={healthError} />
       <Toast toasts={toasts} remove={removeToast} />
 
       <div style={{ padding: '32px 24px', maxWidth: '1400px', margin: '0 auto' }}>
-        {/* ── Header ── */}
-        <div style={{ marginBottom: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-            <div>
-              <h1 style={{ fontSize: '32px', fontWeight: '700', color: '#111827', marginBottom: '6px', letterSpacing: '-0.5px' }}>
-                Welcome back, {user?.name?.split(' ')[0] || 'User'}!
-              </h1>
-              <p style={{ fontSize: '14px', color: '#6b7280' }}>Here&apos;s your financial overview for this month</p>
-            </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => { setEditTx(null); setTxModal(true); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', background: '#3b5bdb', color: '#fff',
-                  border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-                  transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(59, 91, 219, 0.25)',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#2d47a8'}
-                onMouseLeave={(e) => e.currentTarget.style.background = '#3b5bdb'}
-              >
-                <Plus size={16} /> Add Transaction
-              </button>
-
-              <button
-                onClick={fetchHealthScore}
-                disabled={loadingHealth}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-                  transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.25)',
-                }}
-                onMouseEnter={(e) => !loadingHealth && (e.currentTarget.style.transform = 'translateY(-2px)')}
-                onMouseLeave={(e) => !loadingHealth && (e.currentTarget.style.transform = 'translateY(0)')}
-              >
-                {loadingHealth ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={14} />}
-                AI Insight Report
-              </button>
-
-              <button
-                onClick={() => exportToExcel(transactions)}
-                disabled={transactions.length === 0}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', background: '#f0fdf4', color: '#16a34a',
-                  border: '1.5px solid #bbf7d0', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: transactions.length === 0 ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s', opacity: transactions.length === 0 ? 0.5 : 1,
-                }}
-              >
-                <Download size={14} /> Export Data
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ── AI Monthly Summary Section ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '24px' }}>
-             {/* AI Summary Card */}
-             <div style={{
-                background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
-                border: '1px solid #e2e8f0',
-                borderRadius: '24px',
-                padding: '28px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                position: 'relative',
-                overflow: 'hidden'
-             }}>
-                <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.05 }}>
-                    <Sparkles size={120} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+          <div style={{ width: '100%', maxWidth: '600px' }}>
+            <h1 style={{ fontSize: '30px', fontWeight: '800' }}>Welcome, {user?.name?.split(' ')[0] || 'User'}!</h1>
+            <p style={{ fontSize: '14px', fontWeight: '600', color: '#6b7280', marginBottom: '20px' }}>Your Overview</p>
+            
+            {/* Budget Progress Bar */}
+            {user?.monthlyBudget > 0 && (
+              <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: '#374151' }}>Monthly Budget Progress</span>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: (summary.totalExpenses / user.monthlyBudget) > 1 ? '#ef4444' : '#3b82f6' }}>
+                    {Math.round((summary.totalExpenses / user.monthlyBudget) * 100)}%
+                  </span>
                 </div>
-                
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                    <div style={{ padding: '8px', background: '#3b82f6', borderRadius: '10px', color: '#fff' }}>
-                        <Sparkles size={18} />
-                    </div>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: 0 }}>AI Monthly Summary</h3>
+                <div style={{ width: '100%', height: '10px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
+                  <div style={{ 
+                    width: `${Math.min((summary.totalExpenses / user.monthlyBudget) * 100, 100)}%`, 
+                    height: '100%', 
+                    background: (summary.totalExpenses / user.monthlyBudget) > 0.9 ? 'linear-gradient(90deg, #ef4444, #f87171)' : 
+                               (summary.totalExpenses / user.monthlyBudget) > 0.7 ? 'linear-gradient(90deg, #f59e0b, #fbbf24)' : 
+                               'linear-gradient(90deg, #3b82f6, #60a5fa)',
+                    borderRadius: '999px',
+                    transition: 'width 0.5s ease-out'
+                  }} />
                 </div>
-
-                {loadingAI.summary ? (
-                    <div style={{ padding: '20px 0', textAlign: 'center' }}>
-                         <Loader2 size={24} className="animate-spin text-blue-500 mx-auto" />
-                         <p style={{ fontSize: '13px', color: '#64748b', marginTop: '10px' }}>Generating smart insights...</p>
-                    </div>
-                ) : monthlySummary ? (
-                    <div style={{ spaceY: '16px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-                             <div style={{ background: '#fff', padding: '12px', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-                                 <p style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>Highest Spend</p>
-                                 <p style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: 0 }}>{monthlySummary.highestCategory}</p>
-                             </div>
-                             <div style={{ background: '#fff', padding: '12px', borderRadius: '16px', border: '1px solid #f1f5f9' }}>
-                                 <p style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>Trend</p>
-                                 <p style={{ fontSize: '15px', fontWeight: '800', color: monthlySummary.comparison.startsWith('+') ? '#ef4444' : '#10b981', margin: 0 }}>{monthlySummary.comparison}</p>
-                             </div>
-                        </div>
-                        <div style={{ padding: '16px', background: '#eff6ff', borderRadius: '16px', border: '1px left-solid #3b82f6', borderLeftWidth: '4px' }}>
-                             <p style={{ fontSize: '14px', fontWeight: '600', color: '#1e40af', lineHeight: '1.5', margin: 0 }}>{monthlySummary.insight}</p>
-                        </div>
-                        <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                             <div style={{ padding: '4px', background: '#10b981', borderRadius: '50%', color: '#fff' }}>
-                                 <CheckCircle2 size={12} />
-                             </div>
-                             <p style={{ fontSize: '13px', fontWeight: '700', color: '#1e293b', margin: 0 }}>{monthlySummary.suggestion}</p>
-                        </div>
-                    </div>
-                ) : (
-                    <p style={{ fontSize: '14px', color: '#64748b' }}>No summary available yet.</p>
-                )}
-             </div>
-
-             {/* Budget Alerts Section */}
-             <div style={{
-                background: '#fff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '24px',
-                padding: '28px',
-                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                    <div style={{ padding: '8px', background: '#f59e0b', borderRadius: '10px', color: '#fff' }}>
-                        <AlertTriangle size={18} />
-                    </div>
-                    <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: 0 }}>Budget Monitoring</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#6b7280' }}>Spent: ₹{Math.round(summary.totalExpenses || 0).toLocaleString()}</span>
+                  <span style={{ fontSize: '11px', color: '#6b7280' }}>Target: ₹{user.monthlyBudget.toLocaleString()}</span>
                 </div>
-
-                {loadingAI.alerts ? (
-                    <div style={{ padding: '20px 0', textAlign: 'center' }}>
-                         <Loader2 size={24} className="animate-spin text-amber-500 mx-auto" />
-                    </div>
-                ) : budgetAlerts.length > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                         {budgetAlerts.map((alert, idx) => (
-                             <div key={idx} style={{ 
-                                padding: '14px 16px', 
-                                background: alert.type === 'alert' ? '#fef2f2' : alert.type === 'warning' ? '#fffbeb' : '#f0f9ff',
-                                border: '1px solid',
-                                borderColor: alert.type === 'alert' ? '#fecaca' : alert.type === 'warning' ? '#fef3c7' : '#e0f2fe',
-                                borderRadius: '16px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px'
-                             }}>
-                                {alert.type === 'alert' ? <Shield size={18} color="#dc2626" /> : <AlertTriangle size={18} color="#d97706" />}
-                                <p style={{ 
-                                    fontSize: '13px', 
-                                    fontWeight: '600', 
-                                    color: alert.type === 'alert' ? '#991b1b' : alert.type === 'warning' ? '#92400e' : '#075985',
-                                    margin: 0
-                                }}>
-                                    {alert.message}
-                                </p>
-                             </div>
-                         ))}
-                    </div>
-                ) : (
-                    <div style={{ padding: '20px 0', textAlign: 'center', background: '#f0fdf4', borderRadius: '16px', border: '1px dashed #bbf7d0' }}>
-                         <CheckCircle2 size={24} className="text-emerald-500 mx-auto mb-2" />
-                         <p style={{ fontSize: '13px', fontWeight: '700', color: '#065f46', margin: 0 }}>Your budget is safe!</p>
-                         <p style={{ fontSize: '11px', color: '#166534', marginTop: '4px' }}>No alerts or overspending detected yet.</p>
-                    </div>
-                )}
-             </div>
-        </div>
-
-        {/* ── AI Monthly Insights ── */}
-        <div style={{
-          background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '24px',
-          marginBottom: '24px', position: 'relative', overflow: 'hidden'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ padding: '8px', background: 'linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)', borderRadius: '10px', color: '#fff' }}>
-                <LightbulbIcon size={18} />
               </div>
-              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#111827', margin: 0 }}>AI Monthly Insights</h3>
-            </div>
-            <button
-              onClick={generateMonthlyInsights}
-              disabled={loadingInsights}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', background: '#f3f4f6', color: '#374151',
-                border: '1px solid #d1d5db', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: loadingInsights ? 'not-allowed' : 'pointer',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => !loadingInsights && (e.currentTarget.style.background = '#e5e7eb')}
-              onMouseLeave={(e) => !loadingInsights && (e.currentTarget.style.background = '#f3f4f6')}
-            >
-              {loadingInsights ? <Loader2 size={16} className="animate-spin text-purple-600" /> : <Sparkles size={16} className="text-purple-600" />}
-              {monthlyInsights ? 'Refresh Insights' : 'Generate Insights'}
-            </button>
-          </div>
-
-          <div style={{ minHeight: '100px' }}>
-            {loadingInsights ? (
-               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '30px 0' }}>
-                   <Loader2 size={32} className="animate-spin text-purple-500 mb-3" />
-                   <p style={{ fontSize: '14px', color: '#6b7280', fontWeight: '500' }}>Analyzing your transactions...</p>
-               </div>
-            ) : monthlyInsights === null ? (
-               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                   <p style={{ fontSize: '14px', color: '#6b7280' }}>Click "Generate Insights" to discover personalized financial trends.</p>
-               </div>
-            ) : monthlyInsights.length === 0 ? (
-               <div style={{ textAlign: 'center', padding: '30px 0' }}>
-                   <p style={{ fontSize: '14px', color: '#6b7280' }}>Not enough data to generate insights for this month.</p>
-               </div>
-            ) : (
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', animation: 'slideIn 0.4s ease-out' }}>
-                   {monthlyInsights.map((insight, idx) => (
-                       <div key={idx} style={{
-                           padding: '16px', background: '#faf5ff', border: '1px solid #f3e8ff',
-                           borderRadius: '12px', display: 'flex', alignItems: 'flex-start', gap: '12px'
-                       }}>
-                           <div style={{ marginTop: '2px', color: '#9333ea' }}>
-                               <CheckCircle2 size={18} />
-                           </div>
-                           <p style={{ fontSize: '14px', color: '#4c1d95', fontWeight: '500', margin: 0, lineHeight: '1.5' }}>
-                               {insight}
-                           </p>
-                       </div>
-                   ))}
-               </div>
             )}
           </div>
-        </div>
-
-        {/* ── Monthly Budget ── */}
-        <div style={{
-          background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px',
-          marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#111827', margin: 0 }}>Monthly Budget (Default Account)</h3>
-              <button onClick={() => window.location.href = '/settings'} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#d1d5db' }}>
-                <Edit2 size={14} />
-              </button>
-            </div>
-            <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, marginBottom: '12px' }}>
-              ₹{spentAmount.toLocaleString('en-IN')} of ₹{budgetLimit.toLocaleString('en-IN')} spent
-            </p>
-            <div style={{ width: '100%', height: '8px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', background: budgetPct > 90 ? '#ef4444' : '#3b5bdb',
-                width: `${budgetPct}%`, transition: 'width 0.7s ease',
-              }} />
-            </div>
-          </div>
-          <div style={{
-            marginLeft: '20px', padding: '12px 16px', background: budgetPct > 90 ? '#fef2f2' : '#eff6ff',
-            borderRadius: '10px', color: budgetPct > 90 ? '#ef4444' : '#2563eb', fontWeight: '600', fontSize: '13px'
-          }}>
-            {budgetPct.toFixed(1)}% used
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setTxModal(true)} style={{ padding: '10px 24px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '999px', fontSize: '13px', fontWeight: '800' }}>Add Income or Expenses</button>
+            <button onClick={fetchHealthScore} style={{ padding: '10px 18px', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', borderRadius: '10px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>AI Advisor</button>
           </div>
         </div>
 
-        {/* ── Stat Cards ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-          <StatCard
-            label="Balance"
-            value={`₹${summary.availableBalance.toLocaleString('en-IN')}`}
-            sub="Current account balance"
-            icon={<Wallet />}
-            color="#6b7280"
-            bg="#f9fafb"
-          />
-          <StatCard
-            label="Income"
-            value={`₹${summary.totalIncome.toLocaleString('en-IN')}`}
-            sub="This month"
-            icon={<TrendingUp />}
-            color="#10b981"
-            bg="#f0fdf4"
-          />
-          <StatCard
-            label="Expenses"
-            value={`₹${summary.totalExpenses.toLocaleString('en-IN')}`}
-            sub="This month"
-            icon={<TrendingDown />}
-            color="#ef4444"
-            bg="#fef2f2"
-          />
-          <StatCard
-            label="Savings Goal"
-            value={`${summary.savingsRate || 0}%`}
-            sub={`₹${(summary.totalIncome - summary.totalExpenses).toLocaleString('en-IN')} saved this month`}
-            icon={<Shield />}
-            color="#2563eb"
-            bg="#eff6ff"
-          />
+          <StatCard label="Balance" value={`₹${(summary.availableBalance || 0).toLocaleString('en-IN')}`} icon={<Wallet/>} bg="#f9fafb" color="#6b7280" />
+          <StatCard label="Income" value={`₹${(summary.totalIncome || 0).toLocaleString('en-IN')}`} icon={<TrendingUp/>} bg="#f0fdf4" color="#10b981" />
+          <StatCard label="Expenses" value={`₹${(summary.totalExpenses || 0).toLocaleString('en-IN')}`} icon={<TrendingDown/>} bg="#fef2f2" color="#ef4444" />
         </div>
 
-        {/* ── Filter Tabs ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Filter:</span>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
           {FILTER_OPTIONS.map((f, i) => (
-            <button
-              key={f.label}
-              onClick={() => handleFilter(i)}
-              style={{
-                padding: '8px 16px', border: 'none', borderRadius: '999px',
-                fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-                background: filterIdx === i ? '#3b5bdb' : '#f3f4f6',
-                color: filterIdx === i ? '#fff' : '#6b7280',
-                transition: 'all 0.15s',
-              }}
-            >
-              {f.label}
-            </button>
+            <button key={f.label} onClick={() => handleFilter(i)} style={{ padding: '8px 16px', border: 'none', borderRadius: '999px', fontSize: '12px', fontWeight: '700', background: filterIdx === i ? '#3b5bdb' : '#f3f4f6', color: filterIdx === i ? '#fff' : '#6b7280' }}>{f.label}</button>
           ))}
         </div>
 
-        {/* ── Charts Row ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-          {/* Income vs Expenses Bar Chart */}
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Income vs Expenses</h3>
-            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
-              {FILTER_OPTIONS[filterIdx].label} trends for the past {filterIdx === 0 ? '7 days' : filterIdx === 1 ? '4 weeks' : filterIdx === 2 ? '6 months' : '12 months'}
-            </p>
-            {isLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-                <Loader2 size={24} style={{ margin: '0 auto', animation: 'spin 1s linear infinite' }} />
-              </div>
-            ) : barData.length > 0 ? (
+            <h3 style={{ fontSize: '15px', fontWeight: '700' }}>Trends</h3>
+            {isLoading ? <Loader2 className="animate-spin mx-auto my-10"/> : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={barData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" stroke="#6b7280" style={{ fontSize: '12px' }} />
-                  <YAxis stroke="#6b7280" style={{ fontSize: '12px' }} />
-                  <Tooltip contentStyle={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }} />
-                  <Legend />
-                  <Bar dataKey="Income" fill="#10b981" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="Expenses" fill="#ef4444" radius={[8, 8, 0, 0]} />
+                <BarChart data={barData}>
+                  <CartesianGrid strokeDasharray="3 3" /> <XAxis dataKey="name" /> <YAxis /> <Tooltip /> <Legend />
+                  <Bar dataKey="Income" fill="#10b981" radius={[8,8,0,0]} />
+                  <Bar dataKey="Expenses" fill="#ef4444" radius={[8,8,0,0]} />
                 </BarChart>
               </ResponsiveContainer>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-                No data available
-              </div>
             )}
           </div>
-
-          {/* Expenses by Category Pie Chart */}
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Expenses by Category</h3>
-            <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>Current month breakdown</p>
-            {isLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-                <Loader2 size={24} style={{ margin: '0 auto', animation: 'spin 1s linear infinite' }} />
-              </div>
-            ) : pieData.length > 0 ? (
+            <h3 style={{ fontSize: '15px', fontWeight: '700' }}>Categories</h3>
+            {isLoading ? <Loader2 className="animate-spin mx-auto my-10"/> : (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
+                  <Pie data={pieData} cx="50%" cy="50%" outerRadius={100} dataKey="value">
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={getCategoryColor(entry.name, index)} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+                  <Tooltip formatter={(v) => `₹${v.toLocaleString('en-IN')}`} />
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-                No expenses to display
-              </div>
             )}
           </div>
         </div>
 
-        {/* ── Recent Transactions ── */}
         {!isNewUser && (
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '14px', padding: '20px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#111827', marginBottom: '16px' }}>Recent Transactions</h3>
-            {transactions.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
-                No transactions yet. Start by adding one!
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <th style={{ padding: '12px 0', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' }}>Date</th>
-                      <th style={{ padding: '12px 0', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' }}>Description</th>
-                      <th style={{ padding: '12px 0', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' }}>Category</th>
-                      <th style={{ padding: '12px 0', textAlign: 'right', fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' }}>Amount</th>
-                      <th style={{ padding: '12px 0', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#6b7280', textTransform: 'uppercase' }}>Actions</th>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Recent History</h3>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr style={{ borderBottom: '1px solid #e5e7eb' }}><th style={{ textAlign: 'left', padding: '12px' }}>Description</th><th style={{ textAlign: 'right', padding: '12px' }}>Amount</th><th style={{ textAlign: 'right', padding: '12px' }}>Actions</th></tr></thead>
+                <tbody>
+                  {transactions.slice(0, 10).map((tx) => (
+                    <tr key={tx._id} style={{ borderBottom: '1px solid #f3f4f6' }} className="hover-bg-gray">
+                      <td style={{ padding: '12px' }}><strong>{tx.title || tx.category}</strong><br/><small style={{ color: '#6b7280' }}>{tx.category} • {new Date(tx.date).toLocaleDateString()}</small></td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontWeight: '700', color: tx.type === 'INCOME' ? '#10b981' : '#ef4444' }}>
+                        {tx.type === 'INCOME' ? '+' : '−'}₹{Math.abs(tx.amount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'right' }}>
+                        <button 
+                          onClick={() => setDeleteTx(tx)} 
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', padding: '4px', borderRadius: '6px', transition: 'all 0.2s' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = '#9ca3af'}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.slice(0, 10).map((tx) => (
-                      <tr key={tx._id} style={{ borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding: '12px 0', fontSize: '12px', color: '#6b7280' }}>
-                          {tx.date ? new Date(tx.date).toLocaleDateString('en-IN') : '—'}
-                        </td>
-                        <td style={{ padding: '12px 0', fontSize: '13px', color: '#111827', fontWeight: '500' }}>
-                          {tx.title || tx.category}
-                        </td>
-                        <td style={{ padding: '12px 0', fontSize: '12px', color: '#6b7280' }}>
-                          <span style={{ background: '#f3f4f6', padding: '4px 8px', borderRadius: '4px' }}>{tx.category}</span>
-                        </td>
-                        <td style={{
-                          padding: '12px 0', fontSize: '13px', fontWeight: '600', textAlign: 'right',
-                          color: tx.type === 'INCOME' ? '#10b981' : '#ef4444'
-                        }}>
-                          {tx.type === 'INCOME' ? '+' : '−'} ₹{tx.amount.toLocaleString('en-IN')}
-                        </td>
-                        <td style={{ padding: '12px 0', textAlign: 'center' }}>
-                          <button
-                            onClick={() => { setEditTx(tx); setTxModal(true); }}
-                            style={{ background: 'none', border: 'none', color: '#3b5bdb', cursor: 'pointer', fontSize: '12px', fontWeight: '600', marginRight: '10px' }}
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setDeleteTx(tx)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
     </Layout>
+    </DashboardBoundary>
   );
 };
-
 export default Dashboard;

@@ -9,8 +9,10 @@ import { BadRequestException, NotFoundException } from "../utils/app-error.js";
 import { calculateNextOccurrence } from "../utils/helper.js";
 
 import { convertToPaise, convertToRupeeUnit } from "../utils/format-currency.js";
-import { genAI, genAIModel } from "../config/google-ai.config.js";
+import { genAI, genAIModels } from "../config/google-ai.config.js";
 import { receiptPrompt } from "../utils/prompt.js";
+import Tesseract from 'tesseract.js';
+import { checkAndSendBudgetAlerts } from "./budget-alert.service.js";
 
 export const createTransactionService = async (body, userId) => {
   let nextRecurringDate;
@@ -39,7 +41,13 @@ export const createTransactionService = async (body, userId) => {
     lastProcessed: null,
   });
 
-  return transaction;
+  // Check budget after expense
+  const budgetAlert = await checkAndSendBudgetAlerts(userId, transaction).catch(err => {
+    console.error("[TransactionService] Budget alert error:", err);
+    return null;
+  });
+
+  return { transaction, budgetAlert };
 };
 
 export const getAllTransactionService = async (
@@ -220,6 +228,14 @@ export const updateTransactionService = async (
   });
 
   await existingTransaction.save();
+
+  // Trigger budget alert check after update
+  const budgetAlert = await checkAndSendBudgetAlerts(userId, existingTransaction).catch(err => {
+    console.error("[TransactionService] Budget alert trigger error (update):", err);
+    return null;
+  });
+
+  return { transaction: existingTransaction, budgetAlert };
 };
 
 export const deleteTransactionService = async (
@@ -281,59 +297,206 @@ export const bulkTransactionService = async (
   };
 };
 
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const scanReceiptService = async (file) => {
   if (!file) throw new BadRequestException("No file uploaded");
 
+  console.log(`[DEBUG] Received File: ${file.originalname} (${file.size} bytes)`);
+
   try {
-    if (!file.path)
-      throw new BadRequestException("Failed to upload file");
-
-    const responseData = await axios.get(file.path, {
-      responseType: "arraybuffer",
-    });
-
-    const base64String = Buffer.from(responseData.data).toString("base64");
-
-    if (!base64String)
-      throw new BadRequestException("Could not process file");
-
-    const model = genAI.getGenerativeModel({ model: genAIModel });
-
-    const result = await model.generateContent([
-      receiptPrompt,
-      {
-        inlineData: {
-          data: base64String,
-          mimeType: file.mimetype,
-        },
-      },
-    ]);
-
-    const text = result.response.text();
-    const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();
-
-    if (!cleanedText) {
-      return { error: "Could not read receipt content" };
+    let base64String;
+    if (file.buffer) {
+      base64String = file.buffer.toString("base64");
+    } else if (file.path) {
+      // Check if path is a URL (Cloudinary) or local path
+      if (file.path.startsWith('http')) {
+        const resp = await axios.get(file.path, { responseType: "arraybuffer" });
+        base64String = Buffer.from(resp.data).toString("base64");
+      } else {
+        const fs = await import('fs');
+        base64String = fs.readFileSync(file.path).toString("base64");
+      }
+    } else if (file.url) {
+      const resp = await axios.get(file.url, { responseType: "arraybuffer" });
+      base64String = Buffer.from(resp.data).toString("base64");
+    } else {
+      throw new BadRequestException("Invalid file source");
     }
 
-    const data = JSON.parse(cleanedText);
+    let lastError = null;
+    let rawResult = null;
 
-    if (!data.amount || !data.date) {
-      return { error: "Receipt missing required information" };
+    for (let i = 0; i < genAIModels.length; i++) {
+        const modelName = genAIModels[i];
+        try {
+            console.log(`[AI Scan] Trying ${modelName}...`);
+            const model = genAI.getGenerativeModel({ 
+                model: modelName,
+                generationConfig: { response_mime_type: "application/json" }
+            });
+
+            const result = await model.generateContent([
+                receiptPrompt,
+                { inlineData: { data: base64String, mimeType: file.mimetype } }
+            ]);
+
+            rawResult = result.response.text();
+            console.log(`[DEBUG] Raw Gemini Response [${modelName}]:`, rawResult);
+            if (rawResult) break;
+        } catch (err) {
+            lastError = err;
+            const errMsg = err.message || "";
+            // If quota is completely exhausted, do not hammer the remaining failover models
+            if (errMsg.includes('429') || errMsg.includes('Quota')) {
+                console.warn(`[AI Scan] Quota exceeded on ${modelName}, aborting failover loop.`);
+                break;
+            }
+            continue;
+        }
     }
 
-    return {
-      title: data.title || "Receipt",
-      amount: data.amount,
-      date: data.date,
-      description: data.description,
-      category: data.category,
-      paymentMethod: data.paymentMethod,
-      type: data.type,
-      receiptUrl: file.path,
+    if (!rawResult) {
+        console.warn("[DEBUG] AI Quota Exceeded. Engaging Offline Tesseract OCR Fallback...");
+        try {
+            const imageSource = file.buffer || file.path || file.url; 
+            const { data: { text } } = await Tesseract.recognize(imageSource, 'eng');
+            console.log("[DEBUG] Tesseract Extracted Text:", text.substring(0, 150), '...');
+            rawResult = text; 
+        } catch (tcrErr) {
+            console.error("[DEBUG] Tesseract OCR fallback failed:", tcrErr.message);
+            return {
+              title: "New Receipt",
+              shopName: "",
+              amount: 0,
+              date: new Date().toISOString().split('T')[0],
+              category: "Other",
+              tax: 0,
+              paymentMethod: "Other",
+              isAIFailed: true,
+              partial: false,
+              success: false,
+              message: "AI Quota Exceeded and local OCR failed. Please fill details manually."
+            };
+        }
+    }
+
+    // Clean JSON (remove blocks and extra text)
+    let cleaned = rawResult.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) cleaned = jsonMatch[0];
+
+    let data;
+    let isPartial = false;
+    try {
+        data = JSON.parse(cleaned);
+        console.log("[DEBUG] Cleaned Parsed JSON:", data);
+    } catch (e) {
+        console.warn("[DEBUG] JSON Parse failed, returning fallback data.");
+        data = {};
+        isPartial = true;
+    }
+
+    // --- FALLBACK LOGIC ---
+
+    const searchCorpus = ((data.fullText || "") + " " + (rawResult || "")).trim() || "";
+
+    // 1. Amount detection
+    let finalAmount = parseFloat(String(data.amount || 0).replace(/[^\d.-]/g, '')) || 0;
+    if (finalAmount <= 0 && searchCorpus) {
+        isPartial = true;
+        // Simple regex scan for "total" keyword if amount is missing
+        const amountRegex = /(?:total|grand total|final total|payable|amount paid|net amount|due)[\s]*[:\-₹$]*[\s]*([\d,.]+(?:\.\d{2})?)/gi;
+        let match;
+        let amounts = [];
+        while ((match = amountRegex.exec(searchCorpus)) !== null) {
+            const num = parseFloat(match[1].replace(/[^\d.]/g, ''));
+            if (!isNaN(num)) amounts.push(num);
+        }
+        
+        if (amounts.length > 0) {
+             finalAmount = amounts[amounts.length - 1]; // Often the last total is the grand total
+        } else {
+             // Absolute fallback: extract all decimal numbers that look like currency and take the largest
+             const currencyRegex = /(?:[\₹\$]?\s*)(\d{1,5}(?:\.\d{2}))/g;
+             let cMatch;
+             let allNums = [];
+             while ((cMatch = currencyRegex.exec(searchCorpus)) !== null) {
+                 const num = parseFloat(cMatch[1]);
+                 if (!isNaN(num)) allNums.push(num);
+             }
+             if (allNums.length > 0) {
+                 finalAmount = Math.max(...allNums);
+             }
+        }
+    }
+
+    // 2. Date fallback
+    let finalDate = data.date;
+    if (!finalDate || isNaN(new Date(finalDate).getTime())) {
+        isPartial = true;
+        finalDate = new Date().toISOString().split('T')[0];
+    }
+
+    // 3. Category Fallback using keywords
+    let finalCategory = data.category || "Other";
+    const catWords = finalCategory.toLowerCase() + " " + (data.title || "").toLowerCase() + " " + (data.shopName || "").toLowerCase() + " " + (data.description || "").toLowerCase() + " " + searchCorpus.substring(0, 500).toLowerCase();
+    
+    // Explicit mapping as requested
+    if (finalCategory === "Other" || !finalCategory) {
+        isPartial = true;
+        if (/zomato|swiggy|restaurant|cafe|hotel|pizza|food|bk|mcdonald|burger/i.test(catWords)) finalCategory = "Food";
+        else if (/uber|ola|metro|taxi|bus|train|fuel|shell|bpcl|petrol/i.test(catWords)) finalCategory = "Travel";
+        else if (/dmart|reliance|trends|mall|market|shopping|amazon|flipkart/i.test(catWords)) finalCategory = "Shopping";
+        else if (/electri|recharge|gas|broadband|wifi|water|bill|utility/i.test(catWords)) finalCategory = "Bills";
+        else if (/movie|netflix|game|ticket|pvr|inox|show/i.test(catWords)) finalCategory = "Entertainment";
+        else if (/pharmacy|hospital|clinic|medicine|doctor|apollo/i.test(catWords)) finalCategory = "Health";
+        else if (/school|college|books|course|fees|academy/i.test(catWords)) finalCategory = "Education";
+    }
+
+    // 4. Shop Name / merchant
+    let finalShopName = data.shopName || data.merchant || data.title || "";
+    if (!finalShopName && searchCorpus) {
+        isPartial = true;
+        const usefulLines = searchCorpus.split('\n').map(l => l.trim()).filter(l => l.length > 3 && !l.match(/\d/) && !l.includes("{") && !l.toLowerCase().includes("total"));
+        finalShopName = usefulLines.length > 0 ? usefulLines[0].substring(0, 30) : "Unknown Shop";
+    }
+
+    const finalResponse = {
+        title: data.title || finalShopName || "Scanned Expense",
+        amount: finalAmount,
+        date: finalDate,
+        shopName: finalShopName,
+        category: finalCategory,
+        tax: Number(data.tax) || 0,
+        paymentMethod: data.paymentMethod || "Other",
+        description: data.description || `Purchase at ${finalShopName}`,
+        receiptUrl: file.url || file.path || "",
+        merchant: finalShopName, // for backward compatibility if any
+        success: true,
+        partial: isPartial,
+        message: isPartial ? "Some details may be incorrect. Please review." : "Receipt scanned successfully."
     };
-  } catch (error) {
-    console.error("Gemini Scan Error:", error);
-    return { error: "Receipt scanning service unavailable" };
+
+    console.log("[DEBUG] Final Transformed Response:", finalResponse);
+    return finalResponse;
+
+  } catch (err) {
+    console.error("[Scan Error]", err.message);
+    // Never crash completely, fallback to empty manual mode
+    return {
+        title: "New Receipt",
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        shopName: "",
+        category: "Other",
+        tax: 0,
+        paymentMethod: "Other",
+        success: true,
+        partial: true,
+        isAIFailed: true,
+        message: "Unable to read this receipt clearly. Please review.",
+        receiptUrl: file?.url || file?.path || ""
+    };
   }
 };

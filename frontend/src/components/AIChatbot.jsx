@@ -9,7 +9,7 @@ const AIChatbot = () => {
     const [messages, setMessages] = useState([
         { 
             id: 1, 
-            text: "Hi there! 👋 I'm your Finora AI Assistant.\nAsk me about your expenses, budgets, or anything finance-related!", 
+            text: "Hi there! 👋 I'm your Spendly AI Assistant.\nAsk me about your expenses, budgets, or anything finance-related!", 
             isBot: true,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -75,7 +75,7 @@ const AIChatbot = () => {
                         <Bot className="text-blue-600 w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="font-bold text-[16px] leading-tight tracking-tight">StarklyAI</h2>
+                        <h2 className="font-bold text-[16px] leading-tight tracking-tight">SpendlyAI</h2>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <div className="w-1.5 h-1.5 bg-[#4ade80] rounded-full animate-pulse"></div>
                             <span className="text-[10px] text-blue-100 font-medium">Online</span>

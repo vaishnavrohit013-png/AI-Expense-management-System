@@ -20,7 +20,7 @@ const envConfig = () => ({
   CLOUDINARY_API_SECRET: getEnv("CLOUDINARY_API_SECRET"),
 
   RESEND_API_KEY: getEnv("RESEND_API_KEY"),
-  RESEND_MAILER_SENDER: getEnv("RESEND_MAILER_SENDER", ""),
+  RESEND_MAILER_SENDER: getEnv("RESEND_MAILER_SENDER", "onboarding@resend.dev"),
 
   FRONTEND_ORIGIN: getEnv("FRONTEND_ORIGIN", "localhost"),
 });

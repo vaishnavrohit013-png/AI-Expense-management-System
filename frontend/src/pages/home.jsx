@@ -29,17 +29,14 @@ const Navbar = ({ user }) => (
             }}
         >
             {/* Logo */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div
-                    style={{
-                        width: '34px', height: '34px',
-                        background: '#1a3471', borderRadius: '10px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                >
-                    <LayoutGrid size={15} color="#fff" />
-                </div>
-                <span style={{ fontWeight: '700', fontSize: '15px', color: '#111827' }}>ExpenseAI</span>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ 
+                    fontFamily: "'Georgia', serif", 
+                    fontWeight: '700', 
+                    fontSize: '22px', 
+                    color: '#111827',
+                    letterSpacing: '-0.02em'
+                }}>Spendly</span>
             </div>
 
             {/* Center links */}
@@ -55,7 +52,7 @@ const Navbar = ({ user }) => (
 
             {/* CTA */}
             <Link
-                to={user ? "/dashboard" : "/login"}
+                to="/login"
                 style={{
                     padding: '8px 24px',
                     background: '#2563eb',
@@ -70,7 +67,7 @@ const Navbar = ({ user }) => (
                     letterSpacing: '0.05em',
                 }}
             >
-                {user ? "Dashboard" : "Login / Get Started"}
+                Login / Get Started
             </Link>
         </div>
     </header>
@@ -172,11 +169,12 @@ const Home = () => {
     ];
 
     const faqs = [
-        { question: 'Is ExpenseAI free to use?', answer: 'Yes, ExpenseAI offers a free plan with core features. Premium plans unlock advanced AI insights.' },
-        { question: 'How secure is my financial data?', answer: 'We use bank-grade AES-256 encryption. Your credentials are never stored in plain text.' },
-        { question: 'When do I receive budget alerts?', answer: 'Alerts trigger at 80%, 90%, and 100% of your set monthly budget limit.' },
-        { question: 'Can I manage multiple bank accounts?', answer: 'Yes, you can add unlimited accounts including Savings, Checking, and Credit Cards.' },
-        { question: 'Is my data encrypted?', answer: 'All data is encrypted with AES-256. Your personal and financial data is fully protected at rest and in transit.' },
+        { question: 'How does the AI assistant help manage my expenses?', answer: 'The AI analyzes your spending habits and provides smart suggestions to help you save more and manage money better.' },
+        { question: 'Does the app track my monthly spending automatically?', answer: 'Yes, the app automatically tracks every transaction you log and updates your total monthly spending in real-time.' },
+        { question: 'Can I view my spending trends and reports?', answer: 'Absolutely! You can view detailed charts and monthly reports that show exactly where your money is going.' },
+        { question: 'Can the app automatically categorize my expenses?', answer: 'Yes, the AI automatically categorizes your transactions into groups like Food, Rent, or Shopping to keep you organized.' },
+        { question: 'What happens when I exceed my budget?', answer: 'The app sends you instant email and dashboard alerts whenever you reach 80%, 100%, or exceed your set budget limit.' },
+        { question: 'How does the AI generate financial insights?', answer: 'The AI scans your transaction history to provide a financial health score and personalized tips for smarter spending.' },
     ];
 
     const inner = { maxWidth: '1100px', margin: '0 auto', padding: '0 32px' };
@@ -208,7 +206,7 @@ const Home = () => {
                     </p>
                     <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
                         <Link
-                            to={user ? "/dashboard" : "/register"}
+                            to="/register"
                             style={{
                                 padding: '12px 28px',
                                 background: '#1e3a8a',
@@ -226,26 +224,24 @@ const Home = () => {
                                 letterSpacing: '0.05em',
                             }}
                         >
-                            {user ? "Back to Dashboard" : "Get Started Now"} <ArrowRight size={14} />
+                            Get Started Now <ArrowRight size={14} />
                         </Link>
-                        {!user && (
-                            <Link
-                                to="/login"
-                                style={{
-                                    padding: '12px 28px',
-                                    background: '#ffffff',
-                                    color: '#374151',
-                                    borderRadius: '12px',
-                                    fontSize: '13px',
-                                    fontWeight: '700',
-                                    textDecoration: 'none',
-                                    border: '1.5px solid #e5e7eb',
-                                    transition: 'all 0.2s',
-                                }}
-                            >
-                                Existing Member?
-                            </Link>
-                        )}
+                        <Link
+                            to="/login"
+                            style={{
+                                padding: '12px 28px',
+                                background: '#ffffff',
+                                color: '#374151',
+                                borderRadius: '12px',
+                                fontSize: '13px',
+                                fontWeight: '700',
+                                textDecoration: 'none',
+                                border: '1.5px solid #e5e7eb',
+                                transition: 'all 0.2s',
+                            }}
+                        >
+                            Existing Member?
+                        </Link>
                     </div>
                 </div>
             </section>
@@ -300,7 +296,7 @@ const Home = () => {
                         Start managing your expenses with AI-powered insights today.
                     </p>
                     <Link
-                        to={user ? "/dashboard" : "/register"}
+                        to="/register"
                         style={{
                             display: 'inline-flex', alignItems: 'center', gap: '6px',
                             padding: '10px 24px',
@@ -312,7 +308,7 @@ const Home = () => {
                             textDecoration: 'none',
                         }}
                     >
-                        {user ? "View Dashboard" : "Get Started"} <ArrowRight size={13} />
+                        Get Started <ArrowRight size={13} />
                     </Link>
                 </div>
             </section>
@@ -324,7 +320,7 @@ const Home = () => {
                         <h2 style={{ fontFamily: 'Georgia, serif', fontWeight: '700', fontSize: 'clamp(1.4rem,3vw,1.8rem)', color: '#111827', marginBottom: '8px' }}>
                             Frequently Asked Questions
                         </h2>
-                        <p style={{ fontSize: '13px', color: '#9ca3af' }}>Everything you want to know about ExpenseAI.</p>
+                        <p style={{ fontSize: '13px', color: '#9ca3af' }}>Everything you want to know about Spendly.</p>
                     </div>
                     <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #f3f4f6', padding: '0 24px', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
                         {faqs.map((faq, i) => <FAQItem key={i} {...faq} />)}
@@ -336,18 +332,39 @@ const Home = () => {
             <footer style={{ background: '#ffffff', borderTop: '1px solid #f3f4f6', width: '100%' }}>
                 <div style={{ ...inner, padding: '24px 32px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ width: '28px', height: '28px', background: '#1a3471', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <LayoutGrid size={12} color="#fff" />
-                            </div>
-                            <span style={{ fontWeight: '700', fontSize: '13px', color: '#111827' }}>ExpenseAI</span>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <span style={{ 
+                                fontFamily: "'Georgia', serif", 
+                                fontWeight: '700', 
+                                fontSize: '18px', 
+                                color: '#111827' 
+                            }}>Spendly</span>
                         </div>
                         <div style={{ display: 'flex', gap: '20px' }}>
                             <a href="#features" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>Features</a>
                             <a href="#how-it-works" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>How It Works</a>
-                            <Link to={user ? "/dashboard" : "/login"} style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>{user ? 'Dashboard' : 'Login'}</Link>
+                            <Link to="/login" style={{ fontSize: '12px', color: '#9ca3af', textDecoration: 'none' }}>Login</Link>
                         </div>
-                        <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>© 2026 AI Expense Management System.</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                            <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>© 2026 AI Expense Management System.</p>
+                            <div style={{ 
+                                padding: '8px 18px', 
+                                background: 'transparent', 
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '999px',
+                                fontSize: '12px',
+                                fontWeight: '800',
+                                color: '#111827',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
+                            }}>
+                                <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981' }}></div>
+                                Created by Rohit
+                            </div>
+                        </div>
                     </div>
                 </div>
             </footer>

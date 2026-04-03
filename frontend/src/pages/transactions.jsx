@@ -222,42 +222,40 @@ const Transactions = () => {
         <Layout>
             <div className="space-y-8 pb-20">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-[#1e293b]">Transactions</h1>
-                        <p className="text-gray-500 mt-1">Track and manage all your expenses</p>
+                        <h1 className="text-4xl font-black text-[#1e293b] tracking-tighter">Income & Expenses</h1>
                     </div>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex items-center">
                         <button 
                             onClick={() => navigate('/add-transaction')}
-                            className="flex items-center gap-2 px-6 py-3 bg-[#1d4ed8] text-white rounded-xl font-bold text-sm hover:bg-blue-800 transition-all shadow-md group"
+                            className="flex items-center px-20 py-5 bg-red-600 text-white rounded-full font-black text-sm tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-100 group active:scale-95 whitespace-nowrap"
                         >
-                            <Plus size={18} className="transition-transform group-hover:rotate-90" />
-                            New Transaction
+                            Add Income or Expenses
                         </button>
                     </div>
                 </div>
 
                 {/* Advanced Filter Bar */}
                 <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-6">
-                    <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-                        <div className="relative flex-1 w-full lg:max-w-md group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500" size={18} />
+                    <div className="flex flex-col lg:flex-row gap-6 items-center justify-between">
+                        <div className="relative w-full lg:max-w-xs group">
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
                             <input 
                                 type="text" 
                                 name="keyword"
-                                placeholder="Search by title, category, merchant..."
+                                placeholder=""
                                 value={filters.keyword}
                                 onChange={handleFilterChange}
-                                className="w-full pl-12 pr-6 py-3 bg-gray-50 border border-transparent rounded-2xl outline-none focus:bg-white focus:border-blue-500 transition-all font-medium text-[#1e293b]"
+                                className="w-full pl-12 pr-6 py-3 bg-gray-50/50 border border-gray-100 rounded-[1.25rem] outline-none focus:bg-white focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/5 transition-all font-bold text-[#1e293b] shadow-sm"
                             />
                         </div>
                         
-                        <div className="flex gap-2 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
+                        <div className="flex gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
                            <button 
                               onClick={() => setShowFilters(!showFilters)}
-                              className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all border ${
-                                 showFilters ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-gray-100 text-gray-600 hover:bg-gray-50'
+                              className={`flex items-center gap-3 px-6 py-4 rounded-[1.25rem] font-black text-xs uppercase tracking-widest transition-all border shadow-sm ${
+                                 showFilters ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50'
                               }`}
                            >
                               <Filter size={16} />
@@ -265,7 +263,7 @@ const Transactions = () => {
                               <ChevronDown size={14} className={`transition-transform ${showFilters ? 'rotate-180' : ''}`} />
                            </button>
                            
-                           <div className="h-10 w-[1px] bg-gray-100 mx-2 hidden lg:block" />
+                           <div className="h-12 w-[1px] bg-gray-100 mx-3 hidden lg:block" />
 
                            <button 
                               onClick={exportToExcel}
@@ -363,71 +361,72 @@ const Transactions = () => {
                 </div>
 
                 {/* Main Table Card */}
-                <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden animate-in fade-in duration-500">
+                <div className="mx-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden pb-4">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="border-b border-gray-50 text-gray-400">
-                                    <th className="px-8 py-6 text-xs font-bold uppercase tracking-widest">Date</th>
-                                    <th className="px-8 py-6 text-xs font-bold uppercase tracking-widest">Description</th>
-                                    <th className="px-8 py-6 text-xs font-bold uppercase tracking-widest">Merchant</th>
-                                    <th className="px-8 py-6 text-xs font-bold uppercase tracking-widest">Category</th>
-                                    <th className="px-8 py-6 text-xs font-bold uppercase tracking-widest text-right">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {loading && transactions.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="5" className="px-8 py-20 text-center">
-                                            <Loader2 size={32} className="animate-spin text-blue-500 mx-auto" />
-                                        </td>
+                        <div className="min-w-[1000px] max-w-[1200px] mx-auto px-6">
+                            <table className="w-full text-left border-collapse table-auto">
+                                <thead>
+                                    <tr className="border-b border-gray-100 text-gray-400">
+                                        <th className="px-12 py-7 text-[10px] font-black uppercase tracking-wider text-left">Date</th>
+                                        <th className="px-12 py-7 text-[10px] font-black uppercase tracking-wider">Description</th>
+                                        <th className="px-12 py-7 text-[10px] font-black uppercase tracking-wider">Paid To</th>
+                                        <th className="px-12 py-7 text-[10px] font-black uppercase tracking-wider">Category</th>
+                                        <th className="pr-10 pl-6 py-7 text-[10px] font-black uppercase tracking-wider text-right">Amount</th>
                                     </tr>
-                                ) : transactions.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="5" className="px-8 py-20 text-center text-gray-400">
-                                            <div className="max-w-xs mx-auto space-y-3">
-                                                 <Filter size={48} className="mx-auto text-gray-100 mb-4" />
-                                                 <p className="text-lg font-bold text-gray-900">No results found</p>
-                                                 <p className="text-sm font-medium">Try adjusting your filters or search keywords to find what you're looking for.</p>
-                                                 <button onClick={clearFilters} className="text-blue-500 font-bold hover:underline">Clear all filters</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : transactions.map((tx) => (
-                                    <tr key={tx.id || tx._id} className="hover:bg-gray-50/50 transition-colors group">
-                                        <td className="px-8 py-6 text-sm font-bold text-gray-500 whitespace-nowrap">
-                                            {tx.date ? new Intl.DateTimeFormat('en-IN').format(new Date(tx.date)) : '—'}
-                                        </td>
-                                        <td className="px-8 py-6 text-sm font-bold text-[#1e293b]">
-                                            {tx.title || tx.description || '—'}
-                                        </td>
-                                        <td className="px-8 py-6 text-sm font-medium text-gray-400">
-                                            {tx.merchant || '—'}
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <span className={`px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${getCategoryStyles(tx.category || (tx.type === 'INCOME' ? 'Income' : 'Other'))}`}>
-                                                {tx.category || (tx.type === 'INCOME' ? 'Income' : 'Other')}
-                                            </span>
-                                        </td>
-                                        <td className={`px-8 py-6 text-right text-base font-bold ${
-                                            tx.type === 'INCOME' ? 'text-green-500' : 'text-red-500'
-                                        }`}>
-                                            <div className="flex items-center justify-end gap-4">
-                                                <span>{tx.type === 'INCOME' ? '+' : '-'}₹{Math.abs(tx.amount || 0).toLocaleString('en-IN')}</span>
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => handleEditClick(tx)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                    <button onClick={() => handleDelete(tx.id || tx._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                                        <Trash2 size={16} />
-                                                    </button>
+                                </thead>
+                                <tbody className="divide-y divide-gray-50">
+                                    {loading && transactions.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="px-8 py-20 text-center">
+                                                <Loader2 size={32} className="animate-spin text-blue-500 mx-auto" />
+                                            </td>
+                                        </tr>
+                                    ) : transactions.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="px-12 py-20 text-center text-gray-400">
+                                                <div className="max-w-xs mx-auto space-y-3">
+                                                     <Filter size={48} className="mx-auto text-gray-100 mb-4" />
+                                                     <p className="text-lg font-bold text-gray-900">No results found</p>
+                                                     <button onClick={clearFilters} className="text-blue-500 font-bold hover:underline">Clear all filters</button>
+                                                 </div>
+                                            </td>
+                                        </tr>
+                                    ) : transactions.map((tx) => (
+                                        <tr key={tx.id || tx._id} className="hover:bg-gray-50/50 transition-colors group">
+                                            <td className="px-12 py-6 text-[15px] font-black text-[#1e293b] whitespace-nowrap text-left">
+                                                {tx.date ? new Intl.DateTimeFormat('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(tx.date)) : '—'}
+                                            </td>
+                                            <td className="px-12 py-6 text-[15px] font-black text-[#1e293b]">
+                                                {tx.title || tx.description || '—'}
+                                            </td>
+                                            <td className="px-12 py-6 text-[15px] font-black text-gray-500">
+                                                {tx.merchant || '—'}
+                                            </td>
+                                            <td className="px-12 py-6">
+                                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getCategoryStyles(tx.category || (tx.type === 'INCOME' ? 'Income' : 'Other'))}`}>
+                                                    {tx.category || (tx.type === 'INCOME' ? 'Income' : 'Other')}
+                                                </span>
+                                            </td>
+                                            <td className={`pr-10 pl-6 py-6 text-right text-[15px] font-black whitespace-nowrap ${
+                                                tx.type === 'INCOME' ? 'text-green-600' : 'text-red-700'
+                                            }`}>
+                                                <div className="flex items-center justify-end gap-3">
+                                                    <span>₹{Math.abs(tx.amount || 0).toLocaleString('en-IN')}</span>
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => handleEditClick(tx)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                        <button onClick={() => handleDelete(tx.id || tx._id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 

@@ -11,6 +11,7 @@ import {
 
 import { calulateNextReportDate } from "../utils/helper.js";
 import { signJwtToken } from "../utils/jwt.js";
+import { sendEmail } from "../mailers/mailer.js";
 
 /* -------------------------------------------------------------------------- */
 /*                               REGISTER SERVICE                              */
@@ -103,14 +104,38 @@ export const sendOTPService = async (email) => {
   const user = await UserModel.findOne({ email });
   if (!user) throw new NotFoundException("User not found with this email");
 
-  const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+  // Generate 4-digit OTP
+  const otp = Math.floor(1000 + Math.random() * 9000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
   user.otp = otp;
   user.otpExpires = otpExpires;
   await user.save();
 
-  return { success: true, message: "OTP sent (check your email)" };
+  // Send Email
+  try {
+    await sendEmail({
+      to: email,
+      subject: "Your Password Reset OTP - Spendly",
+      html: `
+        <div style="font-family: sans-serif; padding: 20px; color: #334155;">
+          <h1 style="color: #2563eb;">Spendly</h1>
+          <p>You requested a password reset. Use the code below to proceed:</p>
+          <div style="background: #f1f5f9; padding: 20px; text-align: center; border-radius: 12px; margin: 20px 0;">
+            <span style="font-size: 32px; font-weight: 800; letter-spacing: 12px; color: #1e293b;">${otp}</span>
+          </div>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you didn't request this, you can safely ignore this email.</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+          <p style="font-size: 12px; color: #94a3b8;">&copy; ${new Date().getFullYear()} Spendly Team</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("Failed to send OTP email:", err);
+  }
+
+  return { success: true, message: "4-digit OTP sent to your email" };
 };
 
 /* -------------------------------------------------------------------------- */

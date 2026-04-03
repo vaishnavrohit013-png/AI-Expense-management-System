@@ -32,10 +32,10 @@ const budgetAlertSchema = new mongoose.Schema(
       required: true,
     },
 
-    // One of: "80", "100", "exceeded"
+    // One of: "50", "80", "100", "exceeded"
     thresholdType: {
       type: String,
-      enum: ["80", "100", "exceeded"],
+      enum: ["50", "80", "100", "exceeded"],
       required: true,
     },
 

@@ -8,18 +8,14 @@ import {
   CheckCircle2,
   ArrowDown,
   ArrowUp,
-  Calendar as CalendarIcon,
-  Mic,
-  MicOff
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { aiAPI } from '../services/api';
 import Layout from '../components/Layout';
 
 const AddTransaction = () => {
   const navigate = useNavigate();
-  const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState({
@@ -31,10 +27,6 @@ const AddTransaction = () => {
     merchant: ''
   });
   
-  const [listening, setListening] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  const [transcript, setTranscript] = useState('');
-
   const categories = ['Food', 'Travel', 'Shopping', 'Bills', 'Entertainment', 'Health', 'Education', 'Other'];
 
   const handleChange = (e) => {
@@ -42,42 +34,6 @@ const AddTransaction = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
     setError(null);
     setSuccess(null);
-  };
-
-  const handleScanClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const scanData = new FormData();
-      scanData.append('receipt', file);
-      
-      setScanning(true);
-      setError(null);
-      setSuccess(null);
-      try {
-        const res = await transactionAPI.scanReceipt(scanData);
-        if (res.data.data) {
-          const { amount, category, description, date, title, type } = res.data.data;
-          setFormData(prev => ({
-            ...prev,
-            amount: amount?.toString() || '',
-            category: category || prev.category,
-            description: description || title || prev.description,
-            date: date ? new Date(date).toISOString().split('T')[0] : prev.date,
-            type: type || prev.type
-          }));
-          setSuccess("Receipt scanned successfully!");
-        }
-      } catch (err) {
-        console.error("Scanning error:", err);
-        setError("AI Vision failed to parse receipt. Manual entry required.");
-      } finally {
-        setScanning(false);
-      }
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -107,74 +63,6 @@ const AddTransaction = () => {
     }
   };
 
-  const handleVoiceButtonClick = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      setError("Speech recognition is not supported in your browser. Please try Chrome.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setListening(true);
-      setError(null);
-      setSuccess(null);
-      setTranscript('');
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
-      setError(`Speech error: ${event.error}`);
-      setListening(false);
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
-    recognition.onresult = async (event) => {
-      const text = event.results[0][0].transcript;
-      if (!text) {
-        setError("I couldn't hear anything. Please try again.");
-        return;
-      }
-      
-      setTranscript(text);
-      setListening(false);
-      
-      // Send transcript to backend
-      setTranscribing(true);
-      try {
-        const response = await aiAPI.voiceExpense(text);
-        if (response.data.success) {
-          const { title, amount, category, date } = response.data.data;
-          
-          setFormData(prev => ({
-            ...prev,
-            amount: amount?.toString() || '',
-            category: category || prev.category,
-            description: title || prev.description,
-            date: date || prev.date
-          }));
-          
-          setSuccess("Voice expense details extracted! Review and Save.");
-        }
-      } catch (err) {
-        console.error("Voice processing error:", err);
-        setError("Failed to extract details from voice. Please enter manually.");
-      } finally {
-        setTranscribing(false);
-      }
-    };
-
-    recognition.start();
-  };
-
   return (
     <Layout>
       <div className="max-w-xl mx-auto py-10 px-4">
@@ -201,50 +89,6 @@ const AddTransaction = () => {
                 </div>
             )}
 
-            {/* Scan Button */}
-            <div>
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
-                accept="image/*"
-              />
-              <button 
-                type="button"
-                onClick={handleScanClick}
-                disabled={scanning}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-semibold text-sm flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
-              >
-                {scanning ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
-                {scanning ? 'Scanning...' : 'Scan Receipt with AI'}
-              </button>
-            </div>
-
-            {/* Voice Entry Button */}
-            <div className="space-y-3">
-              <button 
-                type="button"
-                onClick={handleVoiceButtonClick}
-                disabled={listening || transcribing}
-                className={`w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all ${
-                    listening 
-                    ? 'bg-red-500 text-white animate-pulse' 
-                    : (transcribing ? 'bg-gray-100 text-gray-400 cursor-wait' : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-100 shadow-sm')
-                }`}
-              >
-                {transcribing ? <Loader2 className="animate-spin" size={20} /> : (listening ? <MicOff size={20} /> : <Mic size={20} />)}
-                {listening ? 'Listening... Speak now' : (transcribing ? 'Processing Voice...' : 'Voice Expense Entry')}
-              </button>
-              
-              {transcript && (
-                <div className="p-3 bg-gray-50 border border-dashed border-gray-200 rounded-lg">
-                    <p className="text-[10px] uppercase font-bold text-gray-400 mb-1 tracking-wider">Voice Transcript</p>
-                    <p className="text-xs italic text-gray-600">"{transcript}"</p>
-                </div>
-              )}
-            </div>
-
             {/* Type Toggle */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-700">Type</label>
@@ -252,9 +96,9 @@ const AddTransaction = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, type: 'EXPENSE' })}
-                  className={`flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-semibold transition-colors ${
+                  className={`flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-semibold transition-all ${
                     formData.type === 'EXPENSE' 
-                      ? 'border-gray-200 bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5' 
+                      ? 'border-red-200 bg-red-50 text-red-600 shadow-sm ring-1 ring-red-500/10' 
                       : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -263,9 +107,9 @@ const AddTransaction = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, type: 'INCOME' })}
-                  className={`flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-semibold transition-colors ${
+                  className={`flex items-center justify-center gap-2 py-3 rounded-lg border text-sm font-semibold transition-all ${
                     formData.type === 'INCOME' 
-                      ? 'border-gray-200 bg-white text-gray-900 shadow-sm ring-1 ring-gray-900/5' 
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-600 shadow-sm ring-1 ring-emerald-500/10' 
                       : 'border-gray-100 bg-gray-50 text-gray-500 hover:bg-gray-100'
                   }`}
                 >
@@ -277,20 +121,15 @@ const AddTransaction = () => {
             {/* Amount */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-700">Amount</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
-                <input 
-                  type="number"
-                  name="amount"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={formData.amount}
-                  onChange={handleChange}
-                  className="w-full pl-8 pr-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                />
-              </div>
+              <input 
+                type="number"
+                name="amount"
+                placeholder="Enter amount"
+                required
+                value={formData.amount}
+                onChange={handleChange}
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-bold"
+              />
             </div>
 
             {/* Description */}
@@ -303,20 +142,20 @@ const AddTransaction = () => {
                 required
                 value={formData.description}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-bold"
               />
             </div>
 
             {/* Merchant */}
             <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-700">Merchant (Optional)</label>
+              <label className="text-sm font-semibold text-gray-700">Paid To</label>
               <input 
                 type="text"
                 name="merchant"
-                placeholder="Store or vendor name"
+                placeholder="Name of recipient or store"
                 value={formData.merchant}
                 onChange={handleChange}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm"
+                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all text-sm font-bold"
               />
             </div>
 

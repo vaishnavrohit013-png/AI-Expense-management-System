@@ -58,9 +58,14 @@ const Login = () => {
             padding: '24px', boxSizing: 'border-box',
         }}>
             {/* Logo */}
-            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                <div style={{ width: '40px', height: '40px', background: '#3b5bdb', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: '700', fontSize: '16px', boxShadow: '0 4px 14px rgba(59,91,219,0.35)' }}>E</div>
-                <span style={{ fontWeight: '700', fontSize: '17px', color: '#1a1a1a' }}>ExpenseAI</span>
+            <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ 
+                    fontFamily: "'Georgia', serif", 
+                    fontWeight: '700', 
+                    fontSize: '28px', 
+                    color: '#1a1a1a',
+                    letterSpacing: '-0.02em'
+                }}>Spendly</span>
             </Link>
 
             {/* Card */}

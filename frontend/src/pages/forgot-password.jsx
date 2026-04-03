@@ -43,8 +43,8 @@ const ForgotPassword = () => {
   // Step 2: Verify OTP
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
-    if (otp.length !== 6) {
-      setError('Please enter the 6-digit code from your email.');
+    if (otp.length !== 4) {
+      setError('Please enter the 4-digit code from your email.');
       return;
     }
     setStep(3);
@@ -85,9 +85,9 @@ const ForgotPassword = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl mb-4">
-            <span className="text-white font-bold text-lg">E</span>
+            <span className="text-white font-bold text-lg">S</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">ExpenseAI</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Spendly</h1>
           <p className="text-gray-500 mt-1">
             {step === 1 && 'Reset your password'}
             {step === 2 && 'Enter verification code'}
@@ -132,7 +132,7 @@ const ForgotPassword = () => {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Forgot your password?</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  Enter your email and we'll send you a 6-digit code to reset your password.
+                  Enter your email and we'll send you a 4-digit code to reset your password.
                 </p>
               </div>
               <div>
@@ -167,26 +167,26 @@ const ForgotPassword = () => {
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 mb-1">Check your email</h2>
                 <p className="text-sm text-gray-500 mb-5">
-                  We sent a 6-digit code to <span className="font-medium text-gray-700">{email}</span>.
+                  We sent a 4-digit code to <span className="font-medium text-gray-700">{email}</span>.
                   Enter the code below.
                 </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  6-digit Code
+                  4-digit Code
                 </label>
                 <input
                   type="text"
                   value={otp}
-                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
-                  placeholder="000000"
-                  maxLength={6}
+                  onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 4)); setError(''); }}
+                  placeholder="0000"
+                  maxLength={4}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 text-center tracking-widest text-lg font-semibold"
                 />
               </div>
               <button
                 type="submit"
-                disabled={otp.length !== 6}
+                disabled={otp.length !== 4}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-xl transition-colors text-sm"
               >
                 Verify Code

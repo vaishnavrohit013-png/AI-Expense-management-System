@@ -145,4 +145,30 @@ export const aiAPI = {
   getMonthlyInsights: () => api.get("/ai/monthly-insights"),
 };
 
+/**
+ * Receipt Vault Endpoints
+ */
+export const receiptAPI = {
+  getAll: (params) => api.get("/receipts", { params }),
+  getById: (id) => api.get(`/receipts/${id}`),
+  delete: (id) => api.delete(`/receipts/${id}`),
+  update: (id, data) => api.put(`/receipts/${id}`, data),
+};
+
+/**
+ * Calendar View Endpoints
+ */
+export const calendarAPI = {
+  getDailyExpenses: (month, year) => api.get("/calendar/expenses", { params: { month, year } }),
+};
+
+/**
+ * Budget Management Endpoints
+ */
+export const budgetAPI = {
+  getAll: (params) => api.get("/budgets", { params }),
+  set: (data) => api.post("/budgets", data),
+  delete: (id) => api.delete(`/budgets/${id}`),
+};
+
 export default api

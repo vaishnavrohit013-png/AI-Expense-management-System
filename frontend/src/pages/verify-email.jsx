@@ -121,9 +121,9 @@ const VerifyEmail = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-600 rounded-xl mb-4">
-            <span className="text-white font-bold text-lg">E</span>
+            <span className="text-white font-bold text-lg">S</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">ExpenseAI</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Spendly</h1>
           <p className="text-gray-500 mt-1">Verify your email</p>
         </div>
 

@@ -193,6 +193,43 @@ const Profile = () => {
                                     }}
                                 />
                             </div>
+
+                            {/* Monthly Budget */}
+                            <div>
+                                <label style={{
+                                    display: 'block',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    color: '#374151',
+                                    marginBottom: '6px',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                }}>
+                                    Total Monthly Budget (₹)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={budget}
+                                    onChange={(e) => { setBudget(e.target.value); setSuccess(''); setError(''); }}
+                                    required
+                                    min="0"
+                                    style={{
+                                        width: '100%',
+                                        boxSizing: 'border-box',
+                                        padding: '10px 12px',
+                                        border: '1.5px solid #e5e7eb',
+                                        borderRadius: '8px',
+                                        fontSize: '14px',
+                                        color: '#111827',
+                                        background: '#fff',
+                                        outline: 'none',
+                                        fontFamily: 'inherit',
+                                        transition: 'border-color 0.15s',
+                                    }}
+                                    onFocus={(e) => { e.target.style.borderColor = '#3b5bdb'; }}
+                                    onBlur={(e) => { e.target.style.borderColor = '#e5e7eb'; }}
+                                />
+                            </div>
                         </div>
 
                         {/* Save Button */}

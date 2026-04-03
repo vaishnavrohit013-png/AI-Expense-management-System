@@ -27,16 +27,12 @@ export const createTransactionController = asyncHandler(async (req, res) => {
   const body = createTransactionSchema.parse(req.body);
   const userId = req.user?._id;
 
-  const transaction = await createTransactionService(body, userId);
-
-  // Fire-and-forget budget alert check (never delays the response)
-  checkAndSendBudgetAlerts(userId, transaction).catch((err) =>
-    console.error("[BudgetAlert] Background check failed:", err.message)
-  );
+  const { transaction, budgetAlert } = await createTransactionService(body, userId);
 
   return res.status(HTTPSTATUS.CREATED).json({
     message: "Transaction created successfully",
     transaction,
+    budgetAlert,
   });
 });
 
@@ -107,10 +103,12 @@ export const updateTransactionController = asyncHandler(async (req, res) => {
   const transactionId = transactionIdSchema.parse(req.params.id);
   const body = updateTransactionSchema.parse(req.body);
 
-  await updateTransactionService(userId, transactionId, body);
+  const { transaction, budgetAlert } = await updateTransactionService(userId, transactionId, body);
 
   return res.status(HTTPSTATUS.OK).json({
     message: "Transaction updated successfully",
+    transaction,
+    budgetAlert,
   });
 });
 

@@ -4,7 +4,7 @@ import { transactionAPI, aiAPI } from '../services/api';
 import {
   ScanLine, Loader2, AlertCircle, CheckCircle2,
   ArrowDown, ArrowUp, Upload, X, Camera,
-  RefreshCw, FileImage, Sparkles, Store,
+  RefreshCw, FileImage, Zap, Lightbulb, Store,
   CalendarDays, Tag, FileText, ShieldCheck,
   CreditCard, Receipt, Clock, Hash, DollarSign,
 } from 'lucide-react';
@@ -46,7 +46,7 @@ const confidenceBadge = (level) => {
 };
 
 const InfoChip = ({ icon: Icon, label, value, confidenceKey, confidence }) => {
-  if (!value && value !== 0) return null;
+  const displayValue = (value !== null && value !== undefined && value !== '') ? value : <span style={{ color: '#94a3b8', fontWeight: '400' }}>Not detected</span>;
   return (
     <div style={{
       background: '#fff', borderRadius: '10px',
@@ -59,7 +59,7 @@ const InfoChip = ({ icon: Icon, label, value, confidenceKey, confidence }) => {
         </span>
         {confidenceKey && confidenceBadge(confidence?.[confidenceKey])}
       </div>
-      <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{value}</span>
+      <span style={{ fontSize: '13px', fontWeight: '700', color: '#0f172a' }}>{displayValue}</span>
     </div>
   );
 };
@@ -91,7 +91,7 @@ const Receipts = () => {
     type: 'EXPENSE',
     amount: '',
     description: '',
-    merchant: '',
+    shopName: '',
     category: 'Food',
     date: new Date().toISOString().split('T')[0],
     tax: '',
@@ -139,7 +139,7 @@ const Receipts = () => {
     setError('');
     setSuccess('');
     setForm({
-      type: 'EXPENSE', amount: '', description: '', merchant: '',
+      type: 'EXPENSE', amount: '', description: '', shopName: '',
       category: 'Food', date: new Date().toISOString().split('T')[0],
       tax: '', paymentMethod: '', notes: '',
     });
@@ -172,68 +172,63 @@ const Receipts = () => {
       const formData = new FormData();
       formData.append('receipt', receiptFile);
 
-      const res = await aiAPI.scanReceipt(formData);
+      const response = await aiAPI.scanReceipt(formData);
       clearInterval(stepInterval);
 
-      // Backend returns: { success: true, message: '...', data: { merchant, amount, date, ... } }
-      const payload = res.data;
+      console.log("Receipt scan response:", response.data);
 
-      // Support both { data: {...} } and flat response shapes
-      const data = (payload?.data && typeof payload.data === 'object')
-        ? payload.data
-        : payload;
+      const payload = response.data;
+      const data = payload?.data;
+      if (!data) throw new Error("No data returned from AI");
 
-      console.log('[Receipts] Scan response:', data);
+      console.log("AI Response:", data);
 
-      // Always go to extracted stage so user can see/edit the form
-      setExtracted(data || null);
-      setConfidence(data?.confidence || {});
-
-      const today = new Date().toISOString().split('T')[0];
-
-      // Check if we got anything useful (correct precedence with parentheses)
-      const hasUsefulData = data && (
-        (data.amount !== null && data.amount !== undefined) ||
-        (data.merchant !== null && data.merchant !== undefined) ||
-        Boolean(data.title)
-      );
-
-      // Auto-populate form — always do this so the form isn't blank
-      setForm({
+      // Map fields exactly as requested
+      const mappedForm = {
+        ...form,
         type: 'EXPENSE',
-        amount: (data?.amount != null) ? String(data.amount) : '',
-        description: data?.title || (data?.merchant ? `Purchase at ${data.merchant}` : ''),
-        merchant: data?.merchant || '',
-        category: matchCategory(data?.category) || 'Other',
+        amount: data.amount || 0,
+        description: data.title || 'Scanned Receipt',
+        shopName: data.shopName || '',
+        category: matchCategory(data.category) || 'Other',
         date: (() => {
           try {
-            const d = data?.date ? new Date(data.date) : null;
-            return (d && !isNaN(d)) ? d.toISOString().split('T')[0] : today;
-          } catch { return today; }
+            const d = data.date ? new Date(data.date) : null;
+            return (d && !isNaN(d)) ? d.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+          } catch { return new Date().toISOString().split('T')[0]; }
         })(),
-        tax: (data?.tax != null) ? String(data.tax) : '',
-        paymentMethod: data?.paymentMethod || '',
-        notes: data?.notes || '',
-      });
+        tax: data.tax != null ? String(data.tax) : '0',
+        paymentMethod: data.paymentMethod || 'Other',
+        notes: data.notes || 'Scanned from receipt',
+      };
 
+      console.log("Mapped form data:", mappedForm);
+
+      // Update both states
+      setConfidence(data.confidence || {});
+      setForm(mappedForm);
+      
       setStage('extracted');
 
-      if (!hasUsefulData) {
-        setError('AI could not extract data from this receipt. Please fill in the details manually below.');
+      if (payload.partial) {
+        setExtracted(data);
+        setSuccess('⚠️ Some details may be incorrect. Please review.');
+      } else if (payload.isAIFailed) {
+        setExtracted(null);
+        setError('AI quota exceeded or API down. Please fill details manually or retry later.');
       } else {
-        setSuccess('✓ Receipt scanned! Review and edit the extracted details below, then click Save.');
+        setExtracted(data);
+        setSuccess('✓ Receipt scanned successfully.');
       }
 
     } catch (err) {
       clearInterval(stepInterval);
       console.error('[Receipts] Scan error:', err);
-      const msg = err.response?.data?.message || 'Scan failed. Please try another image or fill in the details manually.';
+      const msg = err.response?.data?.message || 'Scan failed. Please try another image or fill in manually.';
       setError(msg);
-      // Still go to extracted stage with a blank form so user can fill manually
+      
       setExtracted(null);
-      setConfidence({});
-      const today = new Date().toISOString().split('T')[0];
-      setForm(prev => ({ ...prev, date: prev.date || today }));
+      setForm(prev => ({ ...prev, description: 'Scanned Receipt', notes: 'Scanned from receipt' }));
       setStage('extracted');
     }
   };
@@ -258,7 +253,7 @@ const Receipts = () => {
     // Title is required by the backend — use description or a fallback
     const titleValue = (form.description && form.description.trim())
       ? form.description.trim()
-      : (form.merchant ? `Purchase at ${form.merchant}` : 'Scanned Receipt');
+      : (form.shopName ? `Purchase at ${form.shopName}` : 'Scanned Receipt');
 
     if (!titleValue) {
       setError('Please add a description for this expense.');
@@ -277,7 +272,7 @@ const Receipts = () => {
         // Both title and description are set — title is required by the Zod schema
         title: titleValue,
         description: titleValue,
-        merchant: form.merchant?.trim() || undefined,
+        merchant: form.shopName?.trim() || undefined,
         paymentMethod: form.paymentMethod || undefined,
       };
 
@@ -567,7 +562,7 @@ const Receipts = () => {
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
                     boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
                   }}>
-                  <Sparkles size={15} /> Scan Receipt with AI
+                  <Zap size={15} /> Scan Receipt with AI
                 </button>
               </div>
             )}
@@ -663,7 +658,7 @@ const Receipts = () => {
                 marginBottom: '20px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                  <Sparkles size={16} color="#0284c7" />
+                  <Zap size={16} color="#0284c7" />
                   <span style={{ fontWeight: '800', fontSize: '14px', color: '#0369a1' }}>
                     AI Extracted Details
                   </span>
@@ -677,14 +672,12 @@ const Receipts = () => {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <InfoChip icon={Store}       label="Merchant"       value={extracted.merchant}      confidenceKey="merchant"  confidence={confidence} />
+                  <InfoChip icon={Store}       label="Shop Name"      value={extracted.shopName}      confidenceKey="shopName"  confidence={confidence} />
                   <InfoChip icon={DollarSign}   label="Total Amount"   value={extracted.amount != null ? `₹${extracted.amount}` : null} confidenceKey="amount" confidence={confidence} />
                   <InfoChip icon={CalendarDays} label="Date"           value={extracted.date}          confidenceKey="date"      confidence={confidence} />
-                  <InfoChip icon={Clock}        label="Time"           value={extracted.time}          />
                   <InfoChip icon={Tag}          label="Category"       value={extracted.category}      confidenceKey="category"  confidence={confidence} />
-                  <InfoChip icon={CreditCard}   label="Payment Method" value={extracted.paymentMethod} />
-                  <InfoChip icon={Hash}         label="Receipt #"      value={extracted.receiptNumber} />
                   <InfoChip icon={DollarSign}   label="Tax"            value={extracted.tax != null ? `₹${extracted.tax}` : null} />
+                  <InfoChip icon={CreditCard}   label="Payment Method" value={extracted.paymentMethod} />
                 </div>
 
                 {extracted.notes && (
@@ -821,12 +814,12 @@ const Receipts = () => {
               {/* Two-column: Merchant + Category */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 16px', marginBottom: '14px' }}>
                 <div>
-                  <label style={labelStyle}>Merchant / Store <span style={{ fontWeight: '400', color: '#94a3b8' }}>(opt)</span></label>
-                  <input type="text" name="merchant" placeholder="Store or vendor name"
-                    value={form.merchant} onChange={handleChange}
+                  <label style={labelStyle}>Shop Name <span style={{ fontWeight: '400', color: '#94a3b8' }}>(opt)</span></label>
+                  <input type="text" name="shopName" placeholder="Store or vendor name"
+                    value={form.shopName} onChange={handleChange}
                     style={inputStyle} onFocus={onFocus} onBlur={onBlur}
                   />
-                  {confidence.merchant === 'low' && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#dc2626' }}>✗ Check merchant name</p>}
+                  {confidence.shopName === 'low' && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#dc2626' }}>✗ Check shop name</p>}
                 </div>
                 <div>
                   <label style={labelStyle}>Category</label>
