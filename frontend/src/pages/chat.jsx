@@ -122,8 +122,8 @@ const Chat = () => {
       }
     } catch (error) {
       console.error('💥 [Chat] Error:', error);
-      setError('Connection interrupted. Trying to reconnect...');
-      setMessages(prev => [...prev, { role: 'system', content: `⚠️ I'm taking a quick break. Please try your message again in a few seconds.` }]);
+      setError('');
+      setMessages(prev => [...prev, { role: 'system', content: "Sorry, I'm having trouble. Please try again." }]);
     } finally {
       setIsLoading(false);
     }
@@ -190,11 +190,17 @@ const Chat = () => {
               </div>
             ))}
             {isLoading && (
-              <div className="flex gap-4 items-center pl-2">
-                <div className="flex gap-1.5 items-center px-4 py-3 bg-white border border-slate-100 rounded-2xl rounded-tl-none shadow-sm">
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-75"></div>
-                  <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150"></div>
+              <div className="flex gap-4 items-center pl-2 animate-in fade-in duration-300">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-black bg-indigo-600 text-white italic">
+                  S
+                </div>
+                <div className="flex gap-2 items-center px-5 py-4 bg-white border border-slate-100 rounded-3xl rounded-tl-none shadow-sm text-sm font-bold text-slate-500">
+                  <div className="flex gap-1.5 items-center mr-1">
+                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-75"></div>
+                      <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce delay-150"></div>
+                  </div>
+                  Thinking...
                 </div>
               </div>
             )}

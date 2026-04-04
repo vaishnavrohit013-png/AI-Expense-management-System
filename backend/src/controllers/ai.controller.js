@@ -7,12 +7,13 @@ import { genAI, genAIModel } from "../config/google-ai.config.js";
 import { summaryAnalyticsService, expensePieChartBreakdownService } from "../services/analytics.service.js";
 import { getAllTransactionService, createTransactionService } from "../services/transaction.service.js";
 import { DateRangeEnum } from "../enums/date-range.enum.js";
-import { convertToRupeeUnit } from "../utils/format-currency.js";
+import { convertToRupeeUnit, formatCurrency } from "../utils/format-currency.js";
 import UserModel from "../models/user.model.js";
 import TransactionModel from "../models/transaction.model.js";
 import { scanReceiptService } from "../services/transaction.service.js";
 import { genAIModels } from "../config/google-ai.config.js";
 import BudgetAlertModel from "../models/budget-alert.model.js";
+import { updateUserService } from "../services/user.service.js";
 
 // --- 🚀 UNIVERSAL AI FAILOVER UTILITY ---
 const MODEL_NAMES = genAIModels;
@@ -21,45 +22,48 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const generateWithFailover = async (prompt, systemInstruction = "") => {
     let lastError;
     const fullPrompt = systemInstruction ? `${systemInstruction}\n\n${prompt}` : prompt;
+    const MAX_RETRIES = 2;
     
-    for (let i = 0; i < MODEL_NAMES.length; i++) {
-        const modelName = MODEL_NAMES[i];
-        try {
-            const activeModel = genAI.getGenerativeModel({ 
-                model: modelName,
-                safetySettings: [
-                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-                ]
-            });
+    for (let retry = 0; retry <= MAX_RETRIES; retry++) {
+        for (let i = 0; i < MODEL_NAMES.length; i++) {
+            const modelName = MODEL_NAMES[i];
+            try {
+                const activeModel = genAI.getGenerativeModel({ 
+                    model: modelName,
+                    safetySettings: [
+                        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+                    ]
+                });
 
-            console.log(`[AI Failover] Attempt ${i + 1}/${MODEL_NAMES.length} using ${modelName}...`);
-            const result = await activeModel.generateContent(fullPrompt);
-            const text = result?.response?.text?.();
-            if (text && text.length > 0) return text;
-            
-            throw new Error("Empty response");
-        } catch (err) {
-            lastError = err;
-            const errMsg = err.message?.toLowerCase() || "";
-            const isQuota = errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('capacity');
-            
-            if (isQuota && i < MODEL_NAMES.length - 1) {
-                console.warn(`[AI Failover] ${modelName} over-capacity, immediately trying next...`);
-                // No wait, just keep moving for speed
-                continue;
+                if (retry > 0) console.log(`[AI Retry ${retry}] Attempting with ${modelName}...`);
+                else console.log(`[AI Chat] Generating using ${modelName}...`);
+
+                const result = await activeModel.generateContent(fullPrompt);
+                const text = result?.response?.text?.();
+                if (text && text.length > 0) return text;
+                
+                throw new Error("Empty response from AI");
+            } catch (err) {
+                lastError = err;
+                const errMsg = err.message?.toLowerCase() || "";
+                console.error(`[AI Error] ${modelName} failed (Retry ${retry}):`, err.message);
+
+                if (errMsg.includes('429') || errMsg.includes('quota') || errMsg.includes('capacity')) {
+                    if (i === MODEL_NAMES.length - 1) { // Only sleep if it's the last model
+                        console.warn(`[AI Failover] Rate limit hit on all models. Waiting...`);
+                        await sleep(2000 * (retry + 1));
+                    }
+                    continue; 
+                }
             }
-            console.warn(`[AI Failover] ${modelName} failed, trying next...`);
         }
     }
 
-    const finalMsg = lastError?.message?.toLowerCase() || "";
-    if (finalMsg.includes('429') || finalMsg.includes('quota') || finalMsg.includes('capacity')) {
-        throw new Error("All AI channels are currently busy. Please try again in moments!");
-    }
-    throw new Error(lastError?.message || "AI services temporarily unavailable.");
+    console.error("[AI Chat] All models failed after retries. Last Error:", lastError?.message);
+    throw new Error(`AI is temporarily unavailable. Error: ${lastError?.message || "Service failure"}`);
 };
 
 /**
@@ -114,75 +118,188 @@ const setCachedAI = (userId, type, data) => {
 };
 
 /**
- * AI Chat Controller
+ * 🛠️ ROBUST INTENT DETECTOR
  */
+const detectIntent = (text) => {
+    if (!text) return "general_finance_question";
+    const msg = String(text).toLowerCase().trim();
+    
+    // A. Greeting
+    if (/^(hi|hello|hey|yo|good morning|good evening|good afternoon)/i.test(msg)) return "greeting";
+    
+    // B. Casual
+    if (/^(ok|okay|hmm|got it|fine|yes|no|sure|undestand|yup|nope)/i.test(msg)) return "casual_reply";
+    
+    // C. Help
+    if (/^(help|what can you do|how to use|features|instruction|commands)/i.test(msg)) return "help";
+
+    // F. Savings
+    if (msg.includes("saving") || msg.includes("save")) return "savings_question";
+
+    // D. Spending / Summary (Priority)
+    const spendKeywords = ["breakdown", "summary", "category", "spent", "spending", "expense", "chart", "report", "total", "most", "view", "how much", "how many"];
+    if (spendKeywords.some(k => msg.includes(k))) {
+        if (msg.includes("add") || msg.includes("log") || msg.includes("saved") || msg.includes("added")) return "add_expense"; 
+        return "spending_breakdown";
+    }
+    
+    // BALANCE
+    if (msg.includes("balance") || msg.includes("how much money") || msg.includes("left")) return "balance_check";
+
+    // I. Navigation
+    if (msg.includes("go to") || msg.includes("open") || msg.includes("navigate") || msg.includes("show me") || msg.includes("take me to")) {
+        return "navigation_request";
+    }
+
+    // E/H. Budget
+    if (msg.includes("budget") || msg.includes("monthly limit")) return "budget_update";
+    
+    // G. Add Transaction
+    if (msg.includes("add") || msg.includes("log") || msg.includes("record") || msg.includes("save")) return "add_expense";
+
+    return "general_finance_question";
+};
+
 export const chatWithAIController = asyncHandler(async (req, res) => {
     const { message, history } = req.body;
     if (!message) return res.status(HTTPSTATUS.BAD_REQUEST).json({ success: false, message: "No message provided." });
 
     const userId = req.user?._id;
-    const msg = message.toLowerCase().trim();
-    console.log(`🔍 [AI Chat] Incoming Message: "${msg}"`);
+    const msg = String(message).toLowerCase().trim();
+    const intent = detectIntent(msg);
 
-    // --- 🪄 1. SIMPLE INTENT DETECTION (Local Instant Replies) ---
-    const greetings = ['hi', 'hello', 'hey', 'yo', 'good morning', 'good evening'];
-    const thanks = ['thanks', 'thank you', 'thx', 'perfect', 'awesome', 'cool'];
-    const casual = ['ok', 'okay', 'hmm', 'got it', 'fine', 'yes', 'no', 'sure'];
-    const help = ['help', 'what can you do', 'how to use', 'features', 'instruction'];
+    console.log(`🔍 [AI Chat] User Message: "${message}" | Intent: ${intent}`);
 
-    if (greetings.includes(msg)) {
-        return res.status(HTTPSTATUS.OK).json({ success: true, reply: `Hi ${req.user?.name?.split(' ')[0] || "there"}! How can I help with your expenses today?` });
-    }
-    if (thanks.includes(msg)) {
-        return res.status(HTTPSTATUS.OK).json({ success: true, reply: "You're welcome! Let me know if you need anything else." });
-    }
-    if (casual.includes(msg)) {
-        return res.status(HTTPSTATUS.OK).json({ success: true, reply: "Got it. What's next on your list?" });
-    }
-    if (help.includes(msg)) {
-        return res.status(HTTPSTATUS.OK).json({ success: true, reply: "I can help you add expenses, set budgets, view reports, or look up your spending history. What do you need help with right now?" });
+    // --- 1. GATHER CONTEXT DATA (Only when needed) ---
+    let contextData = { summary: null, categories: null, budget: 10000 };
+    const needsData = ["spending_breakdown", "balance_check", "budget_update", "general_finance_question"].includes(intent);
+    
+    if (needsData) {
+        try {
+            const [user, summary, pie] = await Promise.all([
+                UserModel.findById(userId).catch(() => null),
+                summaryAnalyticsService(userId, DateRangeEnum.THIS_MONTH).catch(() => null),
+                expensePieChartBreakdownService(userId, DateRangeEnum.THIS_MONTH).catch(() => null)
+            ]);
+            contextData = {
+                budget: user?.monthlyBudget || 10000,
+                summary: summary || { availableBalance: 0, totalIncome: 0, totalExpenses: 0 },
+                categories: pie || [] 
+            };
+        } catch (err) {
+            console.warn("⚠️ [AI Chat] Context gathering failed:", err.message);
+        }
     }
 
-    // --- 🧠 2. GATHER FINANCIAL CONTEXT (Only for complex questions) ---
-    let contextData = { summary: null, recentTransactions: [], categories: null, budget: 10000 };
+    const balance = contextData.summary?.availableBalance || 0;
+    const spent = contextData.summary?.totalExpenses || 0;
+    const budget = contextData.budget || 0;
+
+    // --- 2. SIMPLE RESPONSES ---
+    if (intent === "greeting") return res.status(HTTPSTATUS.OK).json({ success: true, reply: "Hi! How can I help you manage your expenses today?" });
+    if (intent === "thanks") return res.status(HTTPSTATUS.OK).json({ success: true, reply: "You're welcome! Happy to help." });
+    if (intent === "casual_reply") return res.status(HTTPSTATUS.OK).json({ success: true, reply: "Got it. What would you like to do next?" });
+    if (intent === "help") return res.status(HTTPSTATUS.OK).json({ success: true, reply: "You can ask me to add expenses, check spending, set budgets, or view reports." });
+    if (intent === "savings_question") return res.status(HTTPSTATUS.OK).json({ success: true, reply: "Savings is the money left after your expenses are deducted from your income." });
+
+    // --- 3. DATA RESPONSES ---
+    if (intent === "spending_breakdown") {
+        const spentVal = formatCurrency(spent).replace(/\.00$/, ''); 
+        let topCat = "";
+        if (contextData.categories && contextData.categories.length > 0) {
+            topCat = ` Most of it is on ${contextData.categories[0]._id}.`;
+        }
+        return res.status(HTTPSTATUS.OK).json({
+            success: true,
+            reply: `You've spent ${spentVal} this month.${topCat}`
+        });
+    }
+
+    if (intent === "balance_check") {
+        return res.status(HTTPSTATUS.OK).json({
+            success: true,
+            reply: `Your current available balance is ${formatCurrency(balance)}.`
+        });
+    }
+
+    // --- 4. ACTION RESPONSES ---
+    if (intent === "navigation_request") {
+        let target = "/dashboard";
+        let pageName = "dashboard";
+        if (msg.includes("profile") || msg.includes("account") || msg.includes("settings")) { target = "/profile"; pageName = "account"; }
+        else if (msg.includes("transaction") || msg.includes("history")) { target = "/transactions"; pageName = "transactions"; }
+        else if (msg.includes("report") || msg.includes("analytic")) { target = "/analytics"; pageName = "reports"; }
+        else if (msg.includes("add") || msg.includes("new")) { target = "/add-transaction"; pageName = "add transaction"; }
+        else if (msg.includes("receipt") || msg.includes("scan")) { target = "/receipts"; pageName = "receipts"; }
+        else if (msg.includes("calendar")) { target = "/calendar"; pageName = "calendar"; }
+        else if (msg.includes("bank") || msg.includes("accounts")) { target = "/accounts"; pageName = "accounts"; }
+
+        return res.status(HTTPSTATUS.OK).json({ 
+            success: true, 
+            reply: `Opening your ${pageName} page.`,
+            action: { type: "navigate", target }
+        });
+    }
+
+    if (intent === "budget_update") {
+        const amtMatch = msg.match(/(\d+)/);
+        if (amtMatch) {
+            const amount = parseInt(amtMatch[1]);
+            await updateUserService(userId, { monthlyBudget: amount });
+            return res.status(HTTPSTATUS.OK).json({
+                success: true,
+                reply: `Your budget is now set to ${formatCurrency(amount)}.`,
+                action: { type: "budget_updated", amount }
+            });
+        }
+        return res.status(HTTPSTATUS.OK).json({
+            success: true,
+            reply: `Your monthly budget is ${formatCurrency(budget)}. You've used ${Math.round((spent/budget)*100)}% of it.`
+        });
+    }
+
+    if (intent === "add_expense") {
+        const amtMatch = msg.match(/(\d+(?:\.\d+)?)/);
+        if (amtMatch) {
+            const amount = parseFloat(amtMatch[0]);
+            let title = msg.replace(amtMatch[0], "").replace("add", "").replace("spent", "").replace("log", "").trim();
+            title = title || "Other Expense";
+            const { transaction } = await createTransactionService({ title, amount, category: "Other", type: "EXPENSE", date: new Date() }, userId);
+            const amtStr = formatCurrency(amount).replace(/\.00$/, '');
+            return res.status(HTTPSTATUS.OK).json({
+                success: true,
+                reply: `Done. I've added ${amtStr} under ${transaction.category}.`,
+                action: { type: "transaction_added", data: transaction }
+            });
+        }
+    }
+
+    // --- 5. AI FALLBACK ---
+    let conversationHistory = "";
+    if (Array.isArray(history) && history.length > 0) {
+        conversationHistory = history.slice(-3).map(h => `${h.isBot ? "Assistant" : "User"}: ${h.text}`).join("\n");
+    }
+
+    const systemPrompt = `Role: Helpful, simple finance assistant.
+Style: Short (1-2 lines), plain text, simple English. No bold. No markdown.
+Context: Balance ${formatCurrency(balance)}, Budget ${formatCurrency(budget)}, Spent ${formatCurrency(spent)}. 
+History: ${conversationHistory}
+Guideline: Do NOT mention UI. Use user data ONLY if asked. Answer user briefly.`;
+
     try {
-        const [user, summary, txs, pie] = await Promise.all([
-            UserModel.findById(userId).catch(() => null),
-            summaryAnalyticsService(userId, DateRangeEnum.ALL_TIME).catch(() => null),
-            TransactionModel.find({ userId }).sort({ date: -1 }).limit(10).catch(() => []),
-            expensePieChartBreakdownService(userId, DateRangeEnum.THIS_MONTH).catch(() => null)
-        ]);
-        contextData = {
-            budget: user?.monthlyBudget || 10000,
-            summary: summary || { availableBalance: 0, totalIncome: 0, totalExpenses: 0 },
-            recentTransactions: txs.map(t => `${t.title}: ₹${t.amount}`).join(", "),
-            categories: pie?.categories || {}
-        };
-    } catch (ctxError) {
-        console.warn("⚠️ [AI Chat] Context gathering partial failure:", ctxError.message);
-    }
-
-    // --- 🤖 3. GENERATE AI RESPONSE (Refined Prompt Logic) ---
-    const systemInstruction = `You are Spendly, a smart and incredibly brief financial assistant. 
-
---- STRICT RESPONSE RULES ---
-1. ANSWER THE QUESTION FIRST: Give a direct answer to the user's question in the very first sentence.
-2. BREVITY: Keep your entire response under 2-4 sentences. NO long explanations.
-3. NO REPETITION: Only mention current balance/budget if explicitly asked or if it is the answer to the question.
-4. BE NATURAL: Speak like a human, not a scripted robot.
-5. ACTION COMMANDS: If the user explicitly asks to "add" or "log" an expense, use this: [[COMMAND: {"type": "ADD_TRANSACTION", "data": {"title": "NAME", "amount": 0, "type": "EXPENSE", "category": "Food"}} ]]
-
---- DATA ---
-Current Status: Balance ₹${contextData.summary?.availableBalance || 0}, Budget ₹${contextData.budget}, Spent this month ₹${contextData.summary?.totalExpenses || 0}.
-
-Context: User is ${req.user?.name || "User"}. DO NOT navigate or switch pages. Answer here.`;
-
-    try {
-        const reply = await generateWithFailover(`${systemInstruction}\nUser Question: ${message}`);
-        console.log(`🤖 [AI Chat] Gemini Reply: "${reply.substring(0, 50)}..."`);
-        return res.status(HTTPSTATUS.OK).json({ success: true, reply: String(reply) });
+        let reply = await generateWithFailover(`${systemPrompt}\n\nUser: ${message}`);
+        reply = reply.replace(/\*|_|#/g, '').replace(/\*\*/g, '').trim(); // Strip markdown
+        return res.status(HTTPSTATUS.OK).json({ success: true, reply });
     } catch (error) {
-        return res.status(HTTPSTATUS.OK).json({ success: true, reply: "I'm having a little trouble connecting. Please try that again." });
+        console.error("❌ [AI Chat] Fallover Final Crash:", error.message);
+        let errorReply = "I'm having a little trouble connecting right now. Please try again.";
+        // If it's a general question or AI failed, still show helpful context
+        if (intent === "general_finance_question" || intent === "spending_breakdown") {
+            const spentVal = formatCurrency(spent).replace(/\.00$/, '');
+            const budgetVal = formatCurrency(budget).replace(/\.00$/, '');
+            errorReply = `I'm having connection issues, but you've spent ${spentVal} this month against your ${budgetVal} budget.`;
+        }
+        return res.status(HTTPSTATUS.OK).json({ success: true, reply: errorReply });
     }
 });
 
@@ -194,9 +311,20 @@ export const getFinancialInsightsController = asyncHandler(async (req, res) => {
     const cached = getCachedAI(userId, 'health');
     if (cached) return res.status(HTTPSTATUS.OK).json({ success: true, ...cached });
 
+    // Gather raw data for fallback/manual calculation
+    const [user, transactions, summary] = await Promise.all([
+        UserModel.findById(userId),
+        TransactionModel.find({ userId }).sort({ date: -1 }).limit(30),
+        summaryAnalyticsService(userId, DateRangeEnum.THIS_MONTH).catch(() => null)
+    ]);
+
+    const budget = user?.monthlyBudget || 0;
+    const spent = summary?.totalExpenses || 0;
+
     try {
-        const transactions = await TransactionModel.find({ userId }).sort({ date: -1 }).limit(30);
-        const prompt = `Analyze: ${JSON.stringify(transactions)}. Return JSON: {"score": number, "suggestions": [], "insights": []}. Use very simple words that anyone can understand. No complicated financial terms.`;
+        const prompt = `Analyze: ${JSON.stringify(transactions)}. User Budget: ${budget}, Spent: ${spent}. 
+        Return JSON ONLY: {"score": number, "suggestions": [], "insights": []}. 
+        Suggestions should be short advice. Insights should be short observations.`;
 
         const text = await generateWithFailover(prompt);
         let cleanedText = text.replace(/```json|```/g, '').trim();
@@ -206,14 +334,47 @@ export const getFinancialInsightsController = asyncHandler(async (req, res) => {
         setCachedAI(userId, 'health', aiData);
         return res.status(HTTPSTATUS.OK).json({ success: true, ...aiData });
     } catch (error) {
-        console.warn("[Health AI Fallback Active]", error.message);
-        return res.status(HTTPSTATUS.OK).json({ 
-            success: true, 
-            score: 75, 
-            suggestions: ["Keep recording your expenses to get smarter insights."], 
-            insights: ["Our primary advisor is currently resting, showing your baseline score."],
+        console.warn("[Health AI Fallback Active] Calculating manual score...");
+        
+        // --- DETERMINISTIC FALLBACK LOGIC ---
+        let score = 85; // Starting healthy score
+        let insights = [];
+        let suggestions = [];
+
+        if (budget > 0) {
+            const usagePct = (spent / budget) * 100;
+            if (usagePct > 100) {
+                score = Math.max(10, 85 - (usagePct / 10)); // Drastic drop for overspending
+                insights.push(`You've gone over your monthly budget by ${Math.round(usagePct - 100)}%.`);
+                suggestions.push("Try to stop spending on extra things for the rest of the month.");
+                suggestions.push("Think about increasing your budget if this happens often.");
+            } else if (usagePct > 80) {
+                score = 65;
+                insights.push(`You've used ${Math.round(usagePct)}% of your budget.`);
+                suggestions.push("You are close to your limit. Be careful with your next buys.");
+            } else {
+                score = 95;
+                insights.push("You're doing great! You're spent less than your budget.");
+                suggestions.push("Keep it up! You are on track to save money.");
+            }
+        } else {
+            score = 70;
+            insights.push("No budget set yet.");
+            suggestions.push("Set a budget to see your health score.");
+        }
+
+        if (transactions.length < 5) {
+            insights.push("Add more expenses to get better advice.");
+        }
+
+        const fallbackData = { 
+            score: Math.round(score), 
+            suggestions: suggestions.slice(0, 3), 
+            insights: insights.slice(0, 3), 
             isAIFallback: true 
-        });
+        };
+        
+        return res.status(HTTPSTATUS.OK).json({ success: true, ...fallbackData });
     }
 });
 

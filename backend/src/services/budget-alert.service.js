@@ -53,7 +53,11 @@ export const checkAndSendBudgetAlerts = async (userId, newTransaction) => {
       const spentRupees = convertToRupeeUnit(catSpent);
       const threshold = getThresholdType((spentRupees / budget.amount) * 100);
       if (threshold && !(await isAlertAlreadySent({ userId, category, month, year, thresholdType: threshold }))) {
-        await sendBudgetAlertEmail({ email: user.email, userName: user.name, category, currentSpend: spentRupees, budgetLimit: budget.amount, thresholdType: threshold });
+        try {
+          await sendBudgetAlertEmail({ email: user.email, userName: user.name, category, currentSpend: spentRupees, budgetLimit: budget.amount, thresholdType: threshold });
+        } catch (emailError) {
+          console.error(`[BudgetAlert] Failed to send category email to ${user.email}:`, emailError.message);
+        }
         await recordAlertSent({ userId, category, month, year, thresholdType: threshold });
         alertInfo = { type: 'category', threshold, category };
       }
@@ -76,14 +80,19 @@ export const checkAndSendBudgetAlerts = async (userId, newTransaction) => {
 
         if (!isSent) {
           console.log(`[BudgetAlert] Triggering Overall ${threshold} alert for ${user.email} (${pct}%)`);
-          await sendBudgetAlertEmail({ 
-            email: user.email, 
-            userName: user.name, 
-            category: "Overall Monthly Wallet", 
-            currentSpend: totalRupees, 
-            budgetLimit: user.monthlyBudget, 
-            thresholdType: threshold 
-          });
+          
+          try {
+            await sendBudgetAlertEmail({ 
+              email: user.email, 
+              userName: user.name, 
+              category: "Overall Monthly Wallet", 
+              currentSpend: totalRupees, 
+              budgetLimit: user.monthlyBudget, 
+              thresholdType: threshold 
+            });
+          } catch (emailError) {
+            console.error(`[BudgetAlert] Failed to send overall email to ${user.email}:`, emailError.message);
+          }
 
           await recordAlertSent({ 
             userId, 

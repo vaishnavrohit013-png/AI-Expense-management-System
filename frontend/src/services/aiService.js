@@ -3,15 +3,12 @@ import { aiAPI } from './api';
 export const aiService = {
     async chatWithAI(userMessage, chatHistory = []) {
         try {
-            const response = await aiAPI.chat({ 
-                message: userMessage, 
-                history: chatHistory 
-            });
-            return response.data.text || "Thinking mode active, but the matrix returned no data.";
+            const response = await aiAPI.chat(userMessage, chatHistory);
+            return response.data;
         } catch (error) {
-            console.error("AI Insight Error:", error);
-            const errorMessage = error.response?.data?.message || "Neural link disrupted. Ensure your backend has a valid GEMINI_API_KEY.";
-            return errorMessage;
+            console.error("AI Communication Error:", error);
+            const errorMessage = error.response?.data?.message || "AI is temporarily unavailable. Please try again later.";
+            return { success: false, reply: errorMessage };
         }
     },
 

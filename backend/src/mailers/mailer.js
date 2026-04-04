@@ -23,5 +23,7 @@ export const sendEmail = async ({
     throw new Error(error.message);
   }
 
+  console.log("📬 [Resend Delivered ID]:", data);
+
   return data;
 };

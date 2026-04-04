@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Minus, Copy, ThumbsUp, ThumbsDown, CheckCheck, Send, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { aiService } from '../services/aiService';
 
 const AIChatbot = () => {
+    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [input, setInput] = useState('');
@@ -37,10 +39,23 @@ const AIChatbot = () => {
         setIsLoading(true);
 
         try {
-            const aiResponse = await aiService.chatWithAI(userText, messages.slice(-5));
+            const data = await aiService.chatWithAI(userText, messages.slice(-5));
+            const { reply, action } = data;
+            
             const botTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const botMessage = { id: Date.now() + 1, text: aiResponse, isBot: true, time: botTime };
+            const botMessage = { id: Date.now() + 1, text: reply, isBot: true, time: botTime };
             setMessages(prev => [...prev, botMessage]);
+
+            // Execute actions returned by the AI
+            if (action) {
+                console.log("🛠️ [AIChatbot] Executing Action:", action.type);
+                if (action.type === 'navigate' && action.target) {
+                    setTimeout(() => {
+                        navigate(action.target);
+                        setIsOpen(false);
+                    }, 1500);
+                }
+            }
         } catch (error) {
             console.error("AI Communication Error:", error);
             const errTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
